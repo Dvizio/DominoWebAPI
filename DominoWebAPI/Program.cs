@@ -31,7 +31,8 @@ app.MapGet("/weatherforecast", () =>
             summaries[Random.Shared.Next(summaries.Length)]
         ))
         .ToArray();
-    return forecast;
+    // return forecast;
+    return "SUPDAWG";
 })
 .WithName("GetWeatherForecast")
 .WithOpenApi();
