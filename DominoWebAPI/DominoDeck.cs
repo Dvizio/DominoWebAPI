@@ -3,12 +3,12 @@ namespace DominoGame;
 
 public class DominoDeck : IDominoDeck
 {
-    public List<DominoTile> Boneyard {get;set;}
-    public int RemainingCount {get;set;}
+    public List<DominoTile> Boneyard { get; set; }
 
-    public DominoDeck(List<DominoTile> boneyard, int remainingCount)
+    public int RemainingCount => Boneyard.Count;
+
+    public DominoDeck(List<DominoTile> boneyard)
     {
         Boneyard = boneyard;
-        RemainingCount = remainingCount;
     }
 }

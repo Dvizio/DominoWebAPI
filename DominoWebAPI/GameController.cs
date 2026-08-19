@@ -31,7 +31,8 @@ public enum GameState
 
 public class GameController
 {
-    public List<IPlayer> players;
+    private Random random = new Random();
+    public List<IPlayer> Players;
     public IPlayer currentplayer;
     public GameMode Mode;
     public GameState Status;
@@ -54,16 +55,23 @@ public class GameController
     public ScoringMethod ScoringMethod;
     public int? NextStarter;
 
-    public void SetPLayerCount(int playerCount)
+    public GameController(List<IPlayer> players, GameMode gameMode, ScoringMethod scoringMethod)
+    {
+        Mode = gameMode; Players = players; ScoringMethod = scoringMethod;
+    }
+
+    public void SetPLayerCount(int playerCount) //i dont think this is needed
     {
         return;
     }
-    public void SetGameMode(GameMode mode)
+    public void SetGameMode(GameMode mode) // not needed as well? properties soalnya
     {
         return;
     }
     public void StartGame()
     {
+        InitializeDeck();
+        RoundNumber = 1;
         return;
     }
 
@@ -93,13 +101,33 @@ public class GameController
     {
         return;
     }
-    public void InitializeDeck() //initialized randomized deck
+    public void InitializeDeck()
     {
-        return;
+        List<DominoTile> boneyard = new List<DominoTile>();
+
+        for (int left = 0; left <= 6; left++)
+        {
+            for (int right = left; right <= 6; right++)
+            {
+                boneyard.Add(new DominoTile(left, right));
+            }
+        }
+
+        deck = new DominoDeck(boneyard);
     }
     public void ShuffleDeck() // might be unused since it will be randomized during initialize
     {
         return;
+    }
+
+    public DominoTile DrawRandomTile()
+    {
+        int index = random.Next(deck.Boneyard.Count);
+
+        DominoTile drawnTile = deck.Boneyard[index];
+        deck.Boneyard.RemoveAt(index);
+
+        return drawnTile;
     }
 
     public void DealHands() // might have to return list<DominoTiles> to first initiate everyplayer hands
