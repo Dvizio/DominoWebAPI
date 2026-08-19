@@ -1,6 +1,6 @@
 namespace DominoGame;
 
-public interface IDominoBoard : IEnumerable
+public interface IDominoBoard
 {
     public List<DominoTile> PlayedTile {get;set;}
     public List<int> OpenEnds {get;set;}

@@ -2,6 +2,6 @@ namespace DominoGame;
 
 public interface IDominoDeck
 {
-    List<DominoTile> Boneyard;
-    int RemainingCount;
+    public List<DominoTile> Boneyard {get;set;}
+    public int RemainingCount {get;set;}
 }

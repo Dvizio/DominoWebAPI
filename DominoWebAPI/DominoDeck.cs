@@ -1,9 +1,10 @@
+using System;
 namespace DominoGame;
 
-public class DominoDeck
+public class DominoDeck : IDominoDeck
 {
-    List<DominoTile> Boneyard;
-    int RemainingCount;
+    public List<DominoTile> Boneyard {get;set;}
+    public int RemainingCount {get;set;}
 
     public DominoDeck(List<DominoTile> boneyard, int remainingCount)
     {
