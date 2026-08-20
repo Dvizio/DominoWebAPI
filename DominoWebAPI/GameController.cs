@@ -34,7 +34,7 @@ public class GameController
     private Random random = new Random();
     public List<IPlayer> Players;
     public IPlayer currentplayer;
-    public GameMode Mode;
+    public GameMode Mode; //readonly
     public GameState Status;
     public int TargetScore = 100;
     public bool isMatchOver;
@@ -55,7 +55,7 @@ public class GameController
     public ScoringMethod ScoringMethod;
     public int? NextStarter;
 
-    public GameController(List<IPlayer> players, GameMode gameMode, ScoringMethod scoringMethod)
+    public GameController(List<IPlayer> players, GameMode gameMode, ScoringMethod scoringMethod, int handSize, int targetScore, StartingPlayerRule rule) //first init will be this
     {
         Mode = gameMode; Players = players; ScoringMethod = scoringMethod;
     }
@@ -68,46 +68,49 @@ public class GameController
     {
         return;
     }
-    public void StartGame()
+    public void StartGame() //
     {
         InitializeDeck();
         RoundNumber = 1;
         return;
     }
 
-    public bool CanDraw()
+    public bool CanDraw() //
     {
+        //if(true)//
+       // DrawFromDeck();
         return true;
     }
-    public void DrawTile()
+    public void DrawTile() // implpemen
     {
+        DrawRandomTile(); //langsung ke player hand
         return;
     }
 
-    public bool CanPlay(DominoTile tile, PlacementSide side)
+    public List<PlacementSide> CanPlay(DominoTile tile, List<DominoTile> drawnTile) // cek condition apakah bisa ditaro atau ngga
     {
-        return true;
+        return ; //Todo
     }
 
-    public void PlayTile(DominoTile tile, PlacementSide side)
+    public void PlayTile(DominoTile tile, PlacementSide side) //ok
     {
         return;
     }
-    public void ConfirmNextPlayer()
+    public void ConfirmNextPlayer() //ok
     {
         return;
     }
-    public void StartNextRound()
+    public IPlayer StartNextRound() //ok
     {
         return;
     }
-    public void InitializeDeck()
+    public void InitializeDeck(int deckSize)
     {
         List<DominoTile> boneyard = new List<DominoTile>();
 
-        for (int left = 0; left <= 6; left++)
+        for (int left = 0; left <= deckSize; left++)
         {
-            for (int right = left; right <= 6; right++)
+            for (int right = left; right <= deckSize; right++)
             {
                 boneyard.Add(new DominoTile(left, right));
             }
@@ -130,7 +133,7 @@ public class GameController
         return drawnTile;
     }
 
-    public void DealHands() // might have to return list<DominoTiles> to first initiate everyplayer hands
+    public void DealHands(ref Dictionary<int, List<DominoTile>> playerHands , int handSize) // dealhands untuk nyebarin kartu setiap pemain
     {
         return;
     }
@@ -138,11 +141,12 @@ public class GameController
     {
         return;
     }
-    public void PassTurn() // might have to joined into NextPlayer instead
+    public void PassTurn() // if CanPlay return empty list 
+    //kalo di  gamemode block dan semua ga bisa jalan, draw
     {
         return;
     }
-    public void ClearDrawnTile()
+    public void ClearDrawnTile() //selfexplanatiory
     {
         return;
     }
@@ -152,27 +156,27 @@ public class GameController
         DominoTile tile = deck.Boneyard[rand];
         return tile;
     }
-    public int CalculatePipTotal(int playerID)
+    public int CalculatePipTotal(int playerID) //round end calculate winner score
     {
         return 1;
     }
-    public bool IsRoundBlocked()
+    public bool IsRoundBlocked() // draw condition in gamemode block
     {
         return true;
     }
-    public int DetermindRoundWinner()
+    public int DetermindRoundWinner() //untuk ngecek siapa menang setiap ronde
     {
         return 1;
     }
-    public int ResolveBlockedTile()
+    public int ResolveBlockedTie() // TBD
     {
         return 1;
     }
-    public int CalculateSumMinusWinner(int playerid)
+    public int CalculateSumMinusWinner(int playerid) // sama kyk calculatepiptotal, exclusive for draw
     {
         return 1;
     }
-    public int DetermindStartingPlayer()
+    public Player DetermindStartingPlayer(StartingPlayerRule rule, List<IPlayer> Players) //tergantung starting player rule lanjut ke CanPLayTile
     {
         return 1;
     }
