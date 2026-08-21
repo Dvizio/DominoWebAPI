@@ -73,7 +73,7 @@ public class GameController
         InitializeDeck();
     }
 
-    public void SetPLayerCount(int playerCount) //i dont think this is needed
+    public void SetPlayerCount(int playerCount) //i dont think this is needed
     {
         return;
     }
@@ -89,15 +89,37 @@ public class GameController
         return;
     }
 
-public bool AutoDraw(IPlayer player, List<DominoTile> dominoTiles)
+    public bool HelperAutoDrawToPlayerHand(IPlayer player)
     {
-        
+        if (CanDraw())
+        {
+            PlayerHands[player.PlayerId].Add(DrawRandomTile());
+            return true;
+        } else
+        {
+            return false;
+        }
     }
     public bool CanDraw() //
     {
         //if(true)//
         // DrawFromDeck();
-        return true;
+        if (Mode == GameMode.Block)
+        {
+            return false;
+        }
+        else
+        {
+            if (deck.RemainingCount == 0)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
     }
     public void DrawTile(Dictionary<int, List<DominoTile>> playerHands, int currentPlayerId) // implpemen
     {
@@ -105,16 +127,18 @@ public bool AutoDraw(IPlayer player, List<DominoTile> dominoTiles)
         return;
     }
 
-    public bool HelperCheckCanPlayEachPlayer(int playerId){
+    public bool HelperCheckCanPlayEachPlayer(int playerId)
+    {
         List<DominoTile> tempHand = PlayerHands[playerId];
-        bool itCan =false;
+        bool itCan = false;
         foreach (var tile in tempHand)
         {
             List<PlacementSide> check;
             check = CanPlay(tile, Board.PlayedTile);
-            if (check == null)
+            if (check != null)
             {
                 itCan = true;
+                return itCan;
             }
         }
         return itCan;
@@ -124,11 +148,11 @@ public bool AutoDraw(IPlayer player, List<DominoTile> dominoTiles)
     {
         List<PlacementSide> answer = new List<PlacementSide>();
         int t = playedTiles.Count;
-        if(tile.Left == playedTiles[0].Left || tile.Right == playedTiles[0].Left)
+        if (tile.Left == playedTiles[0].Left || tile.Right == playedTiles[0].Left)
         {
             answer.Add(PlacementSide.Left);
         }
-        if(tile.Left == playedTiles[t-1].Right || tile.Right == playedTiles[t-1].Right)
+        if (tile.Left == playedTiles[t - 1].Right || tile.Right == playedTiles[t - 1].Right)
         {
             answer.Add(PlacementSide.Right);
         }
@@ -138,17 +162,17 @@ public bool AutoDraw(IPlayer player, List<DominoTile> dominoTiles)
     public void PlayTile(DominoTile tile, PlacementSide side) //ok
     {
         List<DominoTile> playedTile = Board.PlayedTile;
-        if(Board.IsEmpty)
+        if (Board.IsEmpty)
         {
             playedTile.Add(tile);
             Board.PlayedTile = playedTile;
             return;
         }
-        if(side == PlacementSide.Left)
+        if (side == PlacementSide.Left)
         {
-            if(tile.Left == playedTile[0].Left)
+            if (tile.Left == playedTile[0].Left)
             {
-                DominoTile temp = new DominoTile(tile.Right,tile.Left);
+                DominoTile temp = new DominoTile(tile.Right, tile.Left);
                 playedTile.Insert(0, temp);
             }
             else
@@ -156,15 +180,15 @@ public bool AutoDraw(IPlayer player, List<DominoTile> dominoTiles)
                 playedTile.Insert(0, tile);
             }
         }
-        if(side == PlacementSide.Right)
+        if (side == PlacementSide.Right)
         {
-             if(tile.Left == playedTile[^1].Right)
+            if (tile.Left == playedTile[^1].Right)
             {
                 playedTile.Add(tile);
             }
             else
             {
-                 DominoTile temp = new DominoTile(tile.Right,tile.Left);
+                DominoTile temp = new DominoTile(tile.Right, tile.Left);
                 playedTile.Add(temp);
             }
         }
@@ -244,6 +268,9 @@ public bool AutoDraw(IPlayer player, List<DominoTile> dominoTiles)
     public void ClearDrawnTile() //selfexplanatiory
     {
         InitializeDeck();
+        List<DominoTile> playedTile = new List<DominoTile>();
+        List<int> openEnds = new List<int>();
+        Board = new Board(List<DominoTile> playedTile, openEnds);
         return;
     }
 
@@ -251,7 +278,7 @@ public bool AutoDraw(IPlayer player, List<DominoTile> dominoTiles)
     {
         List<DominoTile> tempTile = PlayerHands[playerId];
         int tempScore = 0;
-        foreach (var tile  in tempTile)
+        foreach (var tile in tempTile)
         {
             tempScore += tile.Left;
             tempScore += tile.Right;
