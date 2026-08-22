@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 namespace DominoGame;
 
 public enum PlacementSide { Left, Right }
@@ -16,8 +17,6 @@ public class GameController
     public GameState Status { get; private set; }
     public int TargetScore { get; }
     public IPlayer? RoundWinner { get; private set; }
-    public bool isMatchOver;
-    public bool isRoundOver;
     public List<int> MatchWinners;
     public Dictionary<int, List<DominoTile>> PlayerHands { get; private set; } = new();
     public Dictionary<int, int> Scores { get; private set; } = new();
@@ -28,7 +27,7 @@ public class GameController
     public int RoundNumber { get; private set; }
     public int HandSize { get; }
     public int DeckSize { get; }
-    public StartingPlayerRule FirstStarterRule { get; }
+    public StartingPlayerRule FirstStarterRule { get; private set; }
     // public ScoringMethod ScoringMethod { get; }
     public int? NextStarter;
 
@@ -75,6 +74,16 @@ public class GameController
         CurrentPlayer = DetermineStartingPlayer(FirstStarterRule);
         CurrentPlayerIndex = Players.IndexOf(CurrentPlayer);
         Status = GameState.Playing;
+    }
+    public void StartNextRound()
+    {
+        if (Status == GameState.GameOver)
+            return;
+        if (Status != GameState.RoundOver)
+            return;
+
+        RoundNumber++;
+        StartRound();
     }
 
     public bool AutoDrawToPlayerHand(IPlayer player)
@@ -199,10 +208,10 @@ public class GameController
 
         return true;
     }
-    public void ConfirmNextPlayer() //might not needed, can be handle in the front end
-    {
-        return;
-    }
+    // public void ConfirmNextPlayer() //might not needed, can be handle in the front end
+    // {
+    //     return;
+    // }
 
     private bool CheckRoundEndCondition()
     {
@@ -219,6 +228,7 @@ public class GameController
             RoundWinner = Players.First(p => p.PlayerId == winnerId);
             int roundScore = CalculateSumOfOpponents(winnerId);
             Scores[winnerId] += roundScore;
+            FirstStarterRule = StartingPlayerRule.PreviousWinner;
             if (Scores[winnerId] >= TargetScore)
             {
                 Status = GameState.GameOver;
@@ -378,14 +388,6 @@ public class GameController
         return Players[_random.Next(Players.Count)];
     }
 
-    // public void CompleteRound()
-    // {
-    //     return;
-    // }
-    // public bool IsMatchFinished()
-    // {
-    //     return false;
-    // }
 
     // +event TurnChanged
 
