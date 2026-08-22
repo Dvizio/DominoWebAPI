@@ -61,6 +61,7 @@ public class GameController
         ScoringMethod scoringMethod,
         int handSize,
         int targetScore,
+        int deckSize,
         StartingPlayerRule rule) //first init will be this
     {
         Mode = gameMode;
@@ -70,35 +71,49 @@ public class GameController
         HandSize = handSize;
         FirstStarterRule = rule;
 
-        InitializeDeck();
+        InitializeDeck(deckSize);
+        Scores = new Dictionary<int, int>();
+        PlayerHands = new Dictionary<int, List<DominoTile>>();
+        foreach (var Player in Players)
+        {
+            Scores[Player.PlayerId] = 0;
+            List<DominoTile> tempHands = new List<DominoTile>();
+            PlayerHands[Player.PlayerId] = tempHands;
+        }
+
     }
 
-    public void SetPlayerCount(int playerCount) //i dont think this is needed
-    {
-        return;
-    }
-    public void SetGameMode(GameMode mode) // not needed as well? properties soalnya
-    {
-        return;
-    }
+    // public void SetPlayerCount(int playerCount) //i dont think this is needed
+    // {
+    //     return;
+    // }
+    // public void SetGameMode(GameMode mode) // not needed as well? properties soalnya
+    // {
+    //     return;
+    // }
     public void StartGame() //
     {
         RoundNumber = 1;
-        CurrentPlayer = DetermineStartingPlayer(PlayerHands, HandSize, FirstStarterRule, Players);
+        CurrentPlayer = DetermineStartingPlayer(ref PlayerHands, HandSize, FirstStarterRule, Players);
         CurrentPlayerIndex = CurrentPlayer.PlayerId;
+        List<DominoTile> playedTile = new List<DominoTile>();
+        List<int> openEnds = new List<int>();
+        Board = new DominoBoard(playedTile, openEnds);
         return;
     }
 
-    public bool HelperAutoDrawToPlayerHand(IPlayer player)
+    public bool AutoDrawToPlayerHand(IPlayer player)
     {
         if (CanDraw())
         {
-            PlayerHands[player.PlayerId].Add(DrawRandomTile());
-            return true;
-        } else
-        {
-            return false;
+            if (DrawRandomTile() is DominoTile tile)
+            {
+                PlayerHands[player.PlayerId].Add(tile);
+                return true;
+            }
         }
+
+        return false;
     }
     public bool CanDraw() //
     {
@@ -120,11 +135,6 @@ public class GameController
             }
         }
 
-    }
-    public void DrawTile(Dictionary<int, List<DominoTile>> playerHands, int currentPlayerId) // implpemen
-    {
-        playerHands[currentPlayerId].Add(DrawRandomTile());  //langsung ke player hand
-        return;
     }
 
     public bool HelperCheckCanPlayEachPlayer(int playerId)
@@ -194,14 +204,14 @@ public class GameController
         }
         return;
     }
-    public void ConfirmNextPlayer() //ok
+    public void ConfirmNextPlayer() //might not needed, can be handle in the front end
     {
         return;
     }
-    public IPlayer StartNextRound() //ok
-    {
-        return;
-    }
+    // public IPlayer StartNextRound() //might not needed
+    // {
+    //     return;
+    // }
     public void InitializeDeck(int deckSize)
     {
         List<DominoTile> boneyard = new List<DominoTile>();
@@ -221,22 +231,26 @@ public class GameController
         return;
     }
 
-    public DominoTile DrawRandomTile()
+    public DominoTile? DrawRandomTile()
     {
-        int index = random.Next(deck.Boneyard.Count);
+        if (CanDraw())
+        {
+            int index = random.Next(deck.Boneyard.Count);
 
-        DominoTile drawnTile = deck.Boneyard[index];
-        deck.Boneyard.RemoveAt(index);
+            DominoTile drawnTile = deck.Boneyard[index];
+            deck.Boneyard.RemoveAt(index);
 
-        return drawnTile;
+            return drawnTile;
+        }
+        return null;
     }
 
-    public DominoTile DrawFromDeck()
-    {
-        int rand = RandomNumberGenerator.GetInt32(deck.RemainingCount);
-        DominoTile tile = deck.Boneyard[rand];
-        return tile;
-    }
+    // public DominoTile DrawFromDeck() //Unused
+    // {
+    //     int rand = RandomNumberGenerator.GetInt32(deck.RemainingCount);
+    //     DominoTile tile = deck.Boneyard[rand];
+    //     return tile;
+    // }
 
     public void DealHands(ref Dictionary<int, List<DominoTile>> playerHands, int handSize) // dealhands untuk nyebarin kartu setiap pemain
     {
@@ -245,9 +259,11 @@ public class GameController
             List<DominoTile> tempHands = new List<DominoTile>();
             for (int i = 0; i < handSize; i++)
             {
-                tempHands.Add(DrawRandomTile());
+                if (DrawRandomTile() is DominoTile tile)
+                {
+                    tempHands.Add(tile);
+                }
             }
-
             playerHands.Add(Player.PlayerId, tempHands);
         }
         return;
@@ -265,12 +281,12 @@ public class GameController
         NextPlayer();
         return;
     }
-    public void ClearDrawnTile() //selfexplanatiory
+    public void ClearDrawnTile(int deckSize) //selfexplanatiory
     {
-        InitializeDeck();
+        InitializeDeck(deckSize);
         List<DominoTile> playedTile = new List<DominoTile>();
         List<int> openEnds = new List<int>();
-        Board = new Board(List<DominoTile> playedTile, openEnds);
+        Board = new DominoBoard(playedTile, openEnds);
         return;
     }
 
@@ -287,19 +303,57 @@ public class GameController
     }
     public bool IsRoundBlocked() // draw condition in gamemode block
     {
-        return true;
+        if (Mode == GameMode.Block)
+        {
+            return true;
+        }
+        return false;
     }
     public int DetermineRoundWinner() //untuk ngecek siapa menang setiap ronde
     {
-        return 1;
+        int WinnerId = -1;
+        int lowestTileLength = int.MaxValue;
+        int lowestPip = int.MaxValue;
+        foreach (var player in Players)
+        {
+            int tempPip = CalculatePipTotal(player.PlayerId);
+            int tempTileLength = PlayerHands[player.PlayerId].Count;
+            if (tempPip <= lowestPip)
+            {
+                if (tempTileLength < lowestTileLength)
+                {
+                    lowestPip = tempPip;
+                    lowestTileLength = tempTileLength;
+                    WinnerId = player.PlayerId;
+                    RoundWinner = player;
+                }
+            }
+        }
+        ;
+        return WinnerId;
     }
-    public int ResolveBlockedTie() // TBD
+    // public int ResolveBlockedTie() // unused
+    // {
+    //     return 1;
+    // }
+    public int CalculateSumMinusWinner(int player1, int player2) // sama kyk calculatepiptotal, exclusive for draw
     {
-        return 1;
+        int a = CalculatePipTotal(player1);
+        int b = CalculatePipTotal(player2);
+        return Math.Abs(a - b);
     }
-    public int CalculateSumMinusWinner(int playerid) // sama kyk calculatepiptotal, exclusive for draw
+    public int CalculateSumOfOpponents(int winnerId)
     {
-        return 1;
+        int calculateScore = 0;
+        foreach (var player in Players)
+        {
+            if (player.PlayerId != winnerId)
+            {
+                calculateScore += CalculatePipTotal(player.PlayerId);
+            }
+        }
+        Scores[winnerId] += calculateScore;
+        return calculateScore;
     }
     public IPlayer DetermineStartingPlayer(
         ref Dictionary<int, List<DominoTile>> playerHands,
@@ -307,9 +361,9 @@ public class GameController
         StartingPlayerRule rule,
         List<IPlayer> players)
     {
-        DealHands(playerHands, handSize);
+        DealHands(ref playerHands, handSize);
 
-        if (rule == StartingPlayerRule.PreviousWinner)
+        if (rule == StartingPlayerRule.PreviousWinner && RoundWinner != null)
         {
             return RoundWinner;
         }
@@ -346,14 +400,14 @@ public class GameController
         return players[randomIndex];
     }
 
-    public void CompleteRound()
-    {
-        return;
-    }
-    public bool IsMatchFinished()
-    {
-        return false;
-    }
+    // public void CompleteRound()
+    // {
+    //     return;
+    // }
+    // public bool IsMatchFinished()
+    // {
+    //     return false;
+    // }
 
     // +event TurnChanged
 
