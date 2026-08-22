@@ -1,14 +1,9 @@
 using System;
 using System.Data;
-namespace DominoGame;
+namespace DominoWebAPI.Models;
 
-public enum PlacementSide { Left, Right }
-public enum GameMode { Block, Draw }
-public enum StartingPlayerRule { HighestDouble, PreviousWinner }
-// public enum ScoringMethod { SumMinusWinner, SumOfOpponents }
-public enum GameState { Playing, WaitingForNextPlayer, RoundOver, GameOver }
 
-public class GameController
+public class GameLogic
 {
     private Random _random = new Random();
     public List<IPlayer> Players { get; private set; }
@@ -30,7 +25,7 @@ public class GameController
     // public ScoringMethod ScoringMethod { get; }
     public int? NextStarter;
 
-    public GameController(
+    public GameLogic(
         List<IPlayer> players,
         GameMode gameMode,
         // ScoringMethod scoringMethod,

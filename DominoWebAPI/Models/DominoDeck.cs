@@ -1,5 +1,5 @@
 using System;
-namespace DominoGame;
+namespace DominoWebAPI.Models;
 
 public class DominoDeck : IDominoDeck
 {

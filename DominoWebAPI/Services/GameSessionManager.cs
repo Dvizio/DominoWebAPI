@@ -1,0 +1,128 @@
+namespace DominoWebAPI.Services;
+
+using System.Collections.Concurrent;
+using DominoWebAPI.Models;
+using DominoWebAPI.DTOs;
+
+public class GameSessionManager
+{
+    private readonly ConcurrentDictionary<string, LobbySession> _lobbies = new();
+
+    public LobbySession CreateLobby(string hostName, out int hostPlayerId)
+    {
+        string gameId = GenerateRoomCode();
+        hostPlayerId = 1;
+
+        var hostPlayer = new LobbyPlayer
+        {
+            PlayerId = hostPlayerId,
+            PlayerName = hostName,
+            IsHost = true
+        };
+
+        var session = new LobbySession
+        {
+            GameId = gameId,
+            HostPlayerId = hostPlayerId,
+            Players = new List<LobbyPlayer> { hostPlayer }
+        };
+
+        _lobbies[gameId] = session;
+        return session;
+    }
+
+    public (LobbySession? session, int? newPlayerId, string? errorMessage) JoinLobby(string gameId, string playerName)
+    {
+        if (!_lobbies.TryGetValue(gameId.ToUpper(), out var session))
+            return (null, null, "Game room not found.");
+
+        if (session.ActiveGame != null)
+            return (null, null, "Game has already started.");
+
+        if (session.Players.Count >= 4)
+            return (null, null, "Lobby is full.");
+
+        int newPlayerId = session.Players.Count + 1;
+        var newPlayer = new LobbyPlayer
+        {
+            PlayerId = newPlayerId,
+            PlayerName = playerName,
+            IsHost = false
+        };
+
+        session.Players.Add(newPlayer);
+        return (session, newPlayerId, null);
+    }
+
+    public bool IsHost(string gameId, int playerId)
+    {
+        var lobby = GetLobby(gameId);
+        return lobby != null && lobby.HostPlayerId == playerId;
+    }
+
+    public bool UpdateSettings(UpdateSettingsRequest request)
+    {
+        if (!_lobbies.TryGetValue(request.GameId.ToUpper(), out var session))
+            return false;
+
+        if (session.ActiveGame != null) return false;
+
+        session.Mode = request.Mode;
+        session.DeckSize = request.DeckSize;
+        session.TargetScore = request.TargetScore;
+        session.HandSize = request.HandSize;
+        session.StartingRule = request.StartingRule;
+
+        return true;
+    }
+
+    public GameLogic? StartGame(string gameId, int requestingPlayerId)
+    {
+        if (!_lobbies.TryGetValue(gameId.ToUpper(), out var session))
+            return null;
+
+        if (session.HostPlayerId != requestingPlayerId)
+            return null;
+
+        if (session.Players.Count < 2)
+            return null;
+
+        List<IPlayer> gamePlayers = session.Players
+            .Select(p => new Player(p.PlayerId, p.PlayerName) as IPlayer)
+            .ToList();
+
+        var game = new GameLogic(
+            gamePlayers,
+            session.Mode,
+            session.HandSize,
+            session.TargetScore,
+            session.DeckSize,
+            session.StartingRule
+        );
+
+        game.StartGame();
+        session.ActiveGame = game;
+
+        return game;
+    }
+
+    public LobbySession? GetLobby(string gameId)
+    {
+        _lobbies.TryGetValue(gameId.ToUpper(), out var session);
+        return session;
+    }
+
+    public GameLogic? GetGame(string gameId)
+    {
+        var lobby = GetLobby(gameId);
+        return lobby?.ActiveGame;
+    }
+
+    private static string GenerateRoomCode()
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var random = new Random();
+        return new string(Enumerable.Repeat(chars, 6)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+}

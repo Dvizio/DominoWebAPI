@@ -1,4 +1,4 @@
-namespace DominoGame;
+namespace DominoWebAPI.Models;
 
 public interface IDominoDeck
 {
