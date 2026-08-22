@@ -4,7 +4,7 @@ namespace DominoGame;
 public enum PlacementSide { Left, Right }
 public enum GameMode { Block, Draw }
 public enum StartingPlayerRule { Random, HighestDouble, PreviousWinner }
-public enum ScoringMethod { SumMinusWinner, SumOfOpponents }
+// public enum ScoringMethod { SumMinusWinner, SumOfOpponents }
 public enum GameState { Playing, WaitingForNextPlayer, RoundOver, GameOver }
 
 public class GameController
@@ -28,13 +28,13 @@ public class GameController
     public int RoundNumber { get; private set; }
     public int HandSize { get; }
     public StartingPlayerRule FirstStarterRule { get; }
-    public ScoringMethod ScoringMethod { get; }
+    // public ScoringMethod ScoringMethod { get; }
     public int? NextStarter;
 
     public GameController(
         List<IPlayer> players,
         GameMode gameMode,
-        ScoringMethod scoringMethod,
+        // ScoringMethod scoringMethod,
         int handSize,
         int targetScore,
         int deckSize,
@@ -42,12 +42,11 @@ public class GameController
     {
         Mode = gameMode;
         Players = players;
-        ScoringMethod = scoringMethod;
+        // ScoringMethod = scoringMethod;
         TargetScore = targetScore;
         HandSize = handSize;
         FirstStarterRule = rule;
 
-        InitializeDeck(deckSize);
         Scores = new Dictionary<int, int>();
         PlayerHands = new Dictionary<int, List<DominoTile>>();
         foreach (var player in Players)
@@ -55,7 +54,7 @@ public class GameController
             Scores[player.PlayerId] = 0;
             PlayerHands[player.PlayerId] = new List<DominoTile>();
         }
-        Board = new DominoBoard(new List<DominoTile>(), new List<int>());
+        // Board = new DominoBoard(new List<DominoTile>(), new List<int>());
     }
     public void StartGame() //
     {
@@ -66,7 +65,7 @@ public class GameController
 
     public void StartRound()
     {
-        Board = new DominoBoard(new List<DominoTile>(), new List<int>());
+        InitializeDeck();
         ConsecutivePasses = 0;
 
         DealHands(HandSize);
@@ -220,22 +219,8 @@ public class GameController
         if (winnerId != -1)
         {
             RoundWinner = Players.First(p => p.PlayerId == winnerId);
-            int roundScore;
-            if (ScoringMethod == ScoringMethod.SumOfOpponents)
-            {
-                roundScore = CalculateSumOfOpponents(winnerId);
-            }
-            else if (ScoringMethod == ScoringMethod.SumMinusWinner)
-            {
-                roundScore = CalculateSumOfOpponents(winnerId);
-            }
-            else
-            {
-                roundScore = 0;
-            }
-
+            int roundScore = CalculateSumOfOpponents(winnerId);
             Scores[winnerId] += roundScore;
-
             if (Scores[winnerId] >= TargetScore)
             {
                 Status = GameState.GameOver;
