@@ -1,58 +1,34 @@
 using System;
-using System.Security.Cryptography;
 namespace DominoGame;
 
-public enum PlacementSide
-{
-    Left,
-    Right
-}
-
-public enum GameMode
-{
-    Block,
-    Draw
-}
-
-public enum StartingPlayerRule
-{
-    Random,
-    HighestDouble, PreviousWinner
-}
-public enum ScoringMethod
-{
-    SumMinusWinner, SumOfOpponents
-}
-
-public enum GameState
-{
-    Playing, WaitingForNextPlayer
-}
+public enum PlacementSide { Left, Right }
+public enum GameMode { Block, Draw }
+public enum StartingPlayerRule { Random, HighestDouble, PreviousWinner }
+public enum ScoringMethod { SumMinusWinner, SumOfOpponents }
+public enum GameState { Playing, WaitingForNextPlayer, RoundOver, GameOver }
 
 public class GameController
 {
-    private Random random = new Random();
-    public List<IPlayer> Players;
-    public IPlayer CurrentPlayer;
-    public GameMode Mode; //readonly
-    public GameState Status;
-    public int TargetScore = 100;
+    private Random _random = new Random();
+    public List<IPlayer> Players { get; private set; }
+    public IPlayer CurrentPlayer { get; private set; }
+    public GameMode Mode { get; }
+    public GameState Status { get; private set; }
+    public int TargetScore { get; }
+    public IPlayer? RoundWinner { get; private set; }
     public bool isMatchOver;
     public bool isRoundOver;
-    IPlayer? RoundWinner;
-    int RoundScore;
     public List<int> MatchWinners;
-    public Dictionary<int, List<DominoTile>> PlayerHands;
-    public Dictionary<int, int> Scores;
-    public IDominoBoard Board;
-    public IDominoDeck deck;
-    public int CurrentPlayerIndex;
-    public int ConsecutivePasses;
-    public int RoundNumber;
-    public int HandSize;
-    public StartingPlayerRule FirstStarterRule;
-    public DominoTile? DrawnTile;
-    public ScoringMethod ScoringMethod;
+    public Dictionary<int, List<DominoTile>> PlayerHands { get; private set; } = new();
+    public Dictionary<int, int> Scores { get; private set; } = new();
+    public IDominoBoard Board { get; private set; }
+    public IDominoDeck Deck { get; private set; }
+    public int CurrentPlayerIndex { get; private set; }
+    public int ConsecutivePasses { get; private set; }
+    public int RoundNumber { get; private set; }
+    public int HandSize { get; }
+    public StartingPlayerRule FirstStarterRule { get; }
+    public ScoringMethod ScoringMethod { get; }
     public int? NextStarter;
 
     public GameController(
@@ -74,32 +50,29 @@ public class GameController
         InitializeDeck(deckSize);
         Scores = new Dictionary<int, int>();
         PlayerHands = new Dictionary<int, List<DominoTile>>();
-        foreach (var Player in Players)
+        foreach (var player in Players)
         {
-            Scores[Player.PlayerId] = 0;
-            List<DominoTile> tempHands = new List<DominoTile>();
-            PlayerHands[Player.PlayerId] = tempHands;
+            Scores[player.PlayerId] = 0;
+            PlayerHands[player.PlayerId] = new List<DominoTile>();
         }
-
+        Board = new DominoBoard(new List<DominoTile>(), new List<int>());
     }
-
-    // public void SetPlayerCount(int playerCount) //i dont think this is needed
-    // {
-    //     return;
-    // }
-    // public void SetGameMode(GameMode mode) // not needed as well? properties soalnya
-    // {
-    //     return;
-    // }
     public void StartGame() //
     {
         RoundNumber = 1;
-        CurrentPlayer = DetermineStartingPlayer(ref PlayerHands, HandSize, FirstStarterRule, Players);
-        CurrentPlayerIndex = CurrentPlayer.PlayerId;
-        List<DominoTile> playedTile = new List<DominoTile>();
-        List<int> openEnds = new List<int>();
-        Board = new DominoBoard(playedTile, openEnds);
+        StartRound();
         return;
+    }
+
+    public void StartRound()
+    {
+        Board = new DominoBoard(new List<DominoTile>(), new List<int>());
+        ConsecutivePasses = 0;
+
+        DealHands(HandSize);
+        CurrentPlayer = DetermineStartingPlayer(FirstStarterRule);
+        CurrentPlayerIndex = Players.IndexOf(CurrentPlayer);
+        Status = GameState.Playing;
     }
 
     public bool AutoDrawToPlayerHand(IPlayer player)
@@ -112,20 +85,17 @@ public class GameController
                 return true;
             }
         }
-
         return false;
     }
     public bool CanDraw() //
     {
-        //if(true)//
-        // DrawFromDeck();
         if (Mode == GameMode.Block)
         {
             return false;
         }
         else
         {
-            if (deck.RemainingCount == 0)
+            if (Deck.RemainingCount == 0)
             {
                 return false;
             }
@@ -137,7 +107,7 @@ public class GameController
 
     }
 
-    public bool HelperCheckCanPlayEachPlayer(int playerId)
+    public bool CanPlayerMakeAnyMove(int playerId)
     {
         List<DominoTile> tempHand = PlayerHands[playerId];
         bool itCan = false;
@@ -158,6 +128,12 @@ public class GameController
     {
         List<PlacementSide> answer = new List<PlacementSide>();
         int t = playedTiles.Count;
+        if (t == 0)
+        {
+            answer.Add(PlacementSide.Left);
+            answer.Add(PlacementSide.Right);
+            return answer;
+        }
         if (tile.Left == playedTiles[0].Left || tile.Right == playedTiles[0].Left)
         {
             answer.Add(PlacementSide.Left);
@@ -169,16 +145,27 @@ public class GameController
         return answer; //Todo
     }
 
-    public void PlayTile(DominoTile tile, PlacementSide side) //ok
+    public bool PlayTile(IPlayer player, DominoTile tile, PlacementSide side) //ok
     {
         List<DominoTile> playedTile = Board.PlayedTile;
+        if (player.PlayerId != CurrentPlayer.PlayerId)
+            return false;
+
+        var hand = PlayerHands[player.PlayerId];
+        if (!hand.Contains(tile))
+            return false;
+
+        var validSides = CanPlay(tile, playedTile);
+        if (!validSides.Contains(side))
+            return false;
+
+        hand.Remove(tile);
         if (Board.IsEmpty)
         {
             playedTile.Add(tile);
             Board.PlayedTile = playedTile;
-            return;
         }
-        if (side == PlacementSide.Left)
+        else if (side == PlacementSide.Left)
         {
             if (tile.Left == playedTile[0].Left)
             {
@@ -190,7 +177,7 @@ public class GameController
                 playedTile.Insert(0, tile);
             }
         }
-        if (side == PlacementSide.Right)
+        else if (side == PlacementSide.Right)
         {
             if (tile.Left == playedTile[^1].Right)
             {
@@ -202,16 +189,59 @@ public class GameController
                 playedTile.Add(temp);
             }
         }
-        return;
+        ConsecutivePasses = 0;
+
+        if (hand.Count == 0 || CheckRoundEndCondition())
+        {
+            EndRound();
+        }
+        else
+        {
+            NextPlayer();
+        }
+
+        return true;
     }
     public void ConfirmNextPlayer() //might not needed, can be handle in the front end
     {
         return;
     }
-    // public IPlayer StartNextRound() //might not needed
-    // {
-    //     return;
-    // }
+
+    private bool CheckRoundEndCondition()
+    {
+        return ConsecutivePasses >= Players.Count;
+    }
+
+    public void EndRound()
+    {
+        Status = GameState.RoundOver;
+        int winnerId = DetermineRoundWinner();
+
+        if (winnerId != -1)
+        {
+            RoundWinner = Players.First(p => p.PlayerId == winnerId);
+            int roundScore;
+            if (ScoringMethod == ScoringMethod.SumOfOpponents)
+            {
+                roundScore = CalculateSumOfOpponents(winnerId);
+            }
+            else if (ScoringMethod == ScoringMethod.SumMinusWinner)
+            {
+                roundScore = CalculateSumOfOpponents(winnerId);
+            }
+            else
+            {
+                roundScore = 0;
+            }
+
+            Scores[winnerId] += roundScore;
+
+            if (Scores[winnerId] >= TargetScore)
+            {
+                Status = GameState.GameOver;
+            }
+        }
+    }
     public void InitializeDeck(int deckSize)
     {
         List<DominoTile> boneyard = new List<DominoTile>();
@@ -224,49 +254,36 @@ public class GameController
             }
         }
 
-        deck = new DominoDeck(boneyard);
-    }
-    public void ShuffleDeck() // might be unused since it will be randomized during initialize
-    {
-        return;
+        Deck = new DominoDeck(boneyard);
     }
 
     public DominoTile? DrawRandomTile()
     {
         if (CanDraw())
         {
-            int index = random.Next(deck.Boneyard.Count);
+            int index = _random.Next(Deck.Boneyard.Count);
 
-            DominoTile drawnTile = deck.Boneyard[index];
-            deck.Boneyard.RemoveAt(index);
+            DominoTile drawnTile = Deck.Boneyard[index];
+            Deck.Boneyard.RemoveAt(index);
 
             return drawnTile;
         }
         return null;
     }
 
-    // public DominoTile DrawFromDeck() //Unused
-    // {
-    //     int rand = RandomNumberGenerator.GetInt32(deck.RemainingCount);
-    //     DominoTile tile = deck.Boneyard[rand];
-    //     return tile;
-    // }
-
-    public void DealHands(ref Dictionary<int, List<DominoTile>> playerHands, int handSize) // dealhands untuk nyebarin kartu setiap pemain
+    private void DealHands(int handSize)
     {
-        foreach (var Player in Players)
+        foreach (var player in Players)
         {
-            List<DominoTile> tempHands = new List<DominoTile>();
+            PlayerHands[player.PlayerId] = new List<DominoTile>();
             for (int i = 0; i < handSize; i++)
             {
                 if (DrawRandomTile() is DominoTile tile)
                 {
-                    tempHands.Add(tile);
+                    PlayerHands[player.PlayerId].Add(tile);
                 }
             }
-            playerHands.Add(Player.PlayerId, tempHands);
         }
-        return;
     }
     public IPlayer NextPlayer()// might have to return currentplayer
     {
@@ -275,11 +292,19 @@ public class GameController
         CurrentPlayer = Players[CurrentPlayerIndex];
         return CurrentPlayer;
     }
-    public void PassTurn() // if CanPlay return empty list 
-    //kalo di  gamemode block dan semua ga bisa jalan, draw
+    public void PassTurn(IPlayer player)
     {
-        NextPlayer();
-        return;
+        if (player.PlayerId != CurrentPlayer.PlayerId) return;
+
+        ConsecutivePasses++;
+        if (CheckRoundEndCondition())
+        {
+            EndRound();
+        }
+        else
+        {
+            NextPlayer();
+        }
     }
     public void ClearDrawnTile(int deckSize) //selfexplanatiory
     {
@@ -309,7 +334,7 @@ public class GameController
         }
         return false;
     }
-    public int DetermineRoundWinner() //untuk ngecek siapa menang setiap ronde
+    public int DetermineRoundWinner()
     {
         int WinnerId = -1;
         int lowestTileLength = int.MaxValue;
@@ -318,25 +343,18 @@ public class GameController
         {
             int tempPip = CalculatePipTotal(player.PlayerId);
             int tempTileLength = PlayerHands[player.PlayerId].Count;
-            if (tempPip <= lowestPip)
+            if (tempPip < lowestPip || (tempPip == lowestPip && tempTileLength < lowestTileLength))
             {
-                if (tempTileLength < lowestTileLength)
-                {
-                    lowestPip = tempPip;
-                    lowestTileLength = tempTileLength;
-                    WinnerId = player.PlayerId;
-                    RoundWinner = player;
-                }
+                lowestPip = tempPip;
+                lowestTileLength = tempTileLength;
+                WinnerId = player.PlayerId;
+                RoundWinner = player;
+
             }
         }
-        ;
         return WinnerId;
     }
-    // public int ResolveBlockedTie() // unused
-    // {
-    //     return 1;
-    // }
-    public int CalculateSumMinusWinner(int player1, int player2) // sama kyk calculatepiptotal, exclusive for draw
+    public int CalculateSumMinusWinner(int player1, int player2) // sama kyk calculatepiptotal, exclusive for draw, might be not needed
     {
         int a = CalculatePipTotal(player1);
         int b = CalculatePipTotal(player2);
@@ -352,17 +370,11 @@ public class GameController
                 calculateScore += CalculatePipTotal(player.PlayerId);
             }
         }
-        Scores[winnerId] += calculateScore;
+        calculateScore -= CalculatePipTotal(winnerId);
         return calculateScore;
     }
-    public IPlayer DetermineStartingPlayer(
-        ref Dictionary<int, List<DominoTile>> playerHands,
-        int handSize,
-        StartingPlayerRule rule,
-        List<IPlayer> players)
+    public IPlayer DetermineStartingPlayer(StartingPlayerRule rule)
     {
-        DealHands(ref playerHands, handSize);
-
         if (rule == StartingPlayerRule.PreviousWinner && RoundWinner != null)
         {
             return RoundWinner;
@@ -370,34 +382,25 @@ public class GameController
 
         if (rule == StartingPlayerRule.HighestDouble)
         {
-            int winningPlayerId = -1;
+            IPlayer? highestDoubleOwner = null;
             int highestDouble = -1;
 
-            foreach (var hand in playerHands)
+            foreach (var (playerId, hand) in PlayerHands)
             {
-                int playerId = hand.Key;
-                List<DominoTile> tiles = hand.Value;
-
-                foreach (DominoTile tile in tiles)
+                foreach (var tile in hand.Where(t => t.Left == t.Right))
                 {
-                    if (tile.Left == tile.Right)
+                    if (tile.Left > highestDouble)
                     {
-                        if (tile.Left > highestDouble)
-                        {
-                            highestDouble = tile.Left;
-                            winningPlayerId = playerId;
-                        }
+                        highestDouble = tile.Left;
+                        highestDoubleOwner = Players.First(p => p.PlayerId == playerId);
                     }
                 }
             }
 
-            if (winningPlayerId != -1)
-            {
-                return players.First(p => p.PlayerId == winningPlayerId);
-            }
+            if (highestDoubleOwner != null) return highestDoubleOwner;
         }
-        int randomIndex = random.Next(players.Count);
-        return players[randomIndex];
+
+        return Players[_random.Next(Players.Count)];
     }
 
     // public void CompleteRound()
