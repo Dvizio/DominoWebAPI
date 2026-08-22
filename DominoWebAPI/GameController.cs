@@ -4,7 +4,7 @@ namespace DominoGame;
 
 public enum PlacementSide { Left, Right }
 public enum GameMode { Block, Draw }
-public enum StartingPlayerRule { Random, HighestDouble, PreviousWinner }
+public enum StartingPlayerRule { HighestDouble, PreviousWinner }
 // public enum ScoringMethod { SumMinusWinner, SumOfOpponents }
 public enum GameState { Playing, WaitingForNextPlayer, RoundOver, GameOver }
 
@@ -17,7 +17,6 @@ public class GameController
     public GameState Status { get; private set; }
     public int TargetScore { get; }
     public IPlayer? RoundWinner { get; private set; }
-    public List<int> MatchWinners;
     public Dictionary<int, List<DominoTile>> PlayerHands { get; private set; } = new();
     public Dictionary<int, int> Scores { get; private set; } = new();
     public IDominoBoard Board { get; private set; }
