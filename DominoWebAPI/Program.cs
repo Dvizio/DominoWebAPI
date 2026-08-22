@@ -1,18 +1,21 @@
+using DominoWebAPI.Hubs;
+using DominoWebAPI.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
+builder.Services.AddSignalR();
 builder.Services.AddSingleton<DominoWebAPI.Services.GameSessionManager>();
 //Cors
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -27,5 +30,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<GameHub>("/gameHub");
 
 app.Run();
