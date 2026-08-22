@@ -55,7 +55,6 @@ public class GameLogic
     {
         RoundNumber = 1;
         StartRound();
-        return;
     }
 
     public void StartRound()
@@ -63,7 +62,7 @@ public class GameLogic
         InitializeDeck(DeckSize);
         Board = new DominoBoard(new List<DominoTile>(), new List<int>());
         ConsecutivePasses = 0;
-
+        Console.WriteLine("Dealing Hands!");
         DealHands(HandSize);
         CurrentPlayer = DetermineStartingPlayer(FirstStarterRule);
         CurrentPlayerIndex = Players.IndexOf(CurrentPlayer);
@@ -92,23 +91,24 @@ public class GameLogic
         }
         return false;
     }
-    public bool CanDraw() //
+    public bool CanDraw()
     {
-        if (Mode == GameMode.Block)
-        {
-            return false;
-        }
-        else
-        {
-            if (Deck.RemainingCount == 0)
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
-        }
+        return Deck != null && Deck.Boneyard != null && Deck.Boneyard.Count > 0;
+        // if (Mode == GameMode.Block)
+        // {
+        //     return false;
+        // }
+        // else
+        // {
+        //     if (Deck.RemainingCount == 0)
+        //     {
+        //         return false;
+        //     }
+        //     else
+        //     {
+        //         return true;
+        //     }
+        // }
 
     }
     public bool CanPlayerMakeAnyMove(int playerId)
@@ -202,10 +202,6 @@ public class GameLogic
 
         return true;
     }
-    // public void ConfirmNextPlayer() //might not needed, can be handle in the front end
-    // {
-    //     return;
-    // }
 
     private bool CheckRoundEndCondition()
     {
