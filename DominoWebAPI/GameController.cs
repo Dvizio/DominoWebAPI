@@ -27,6 +27,7 @@ public class GameController
     public int ConsecutivePasses { get; private set; }
     public int RoundNumber { get; private set; }
     public int HandSize { get; }
+    public int DeckSize { get; }
     public StartingPlayerRule FirstStarterRule { get; }
     // public ScoringMethod ScoringMethod { get; }
     public int? NextStarter;
@@ -46,6 +47,7 @@ public class GameController
         TargetScore = targetScore;
         HandSize = handSize;
         FirstStarterRule = rule;
+        DeckSize = deckSize;
 
         Scores = new Dictionary<int, int>();
         PlayerHands = new Dictionary<int, List<DominoTile>>();
@@ -65,7 +67,8 @@ public class GameController
 
     public void StartRound()
     {
-        InitializeDeck();
+        InitializeDeck(DeckSize);
+        Board = new DominoBoard(new List<DominoTile>(), new List<int>());
         ConsecutivePasses = 0;
 
         DealHands(HandSize);
@@ -105,22 +108,17 @@ public class GameController
         }
 
     }
-
     public bool CanPlayerMakeAnyMove(int playerId)
     {
-        List<DominoTile> tempHand = PlayerHands[playerId];
-        bool itCan = false;
-        foreach (var tile in tempHand)
+        foreach (var tile in PlayerHands[playerId])
         {
-            List<PlacementSide> check;
-            check = CanPlay(tile, Board.PlayedTile);
-            if (check != null)
-            {
-                itCan = true;
-                return itCan;
-            }
+            var validSides = CanPlay(tile, Board.PlayedTile);
+
+            if (validSides.Count > 0)
+                return true;
         }
-        return itCan;
+
+        return false;
     }
 
     public List<PlacementSide> CanPlay(DominoTile tile, List<DominoTile> playedTiles) // cek condition apakah bisa ditaro atau ngga
@@ -290,14 +288,6 @@ public class GameController
         {
             NextPlayer();
         }
-    }
-    public void ClearDrawnTile(int deckSize) //selfexplanatiory
-    {
-        InitializeDeck(deckSize);
-        List<DominoTile> playedTile = new List<DominoTile>();
-        List<int> openEnds = new List<int>();
-        Board = new DominoBoard(playedTile, openEnds);
-        return;
     }
 
     public int CalculatePipTotal(int playerId) //round end calculate winner score
