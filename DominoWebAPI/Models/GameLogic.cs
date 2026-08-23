@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Text.Json.Serialization;
 namespace DominoWebAPI.Models;
 
 
@@ -93,23 +94,22 @@ public class GameLogic
     }
     public bool CanDraw()
     {
-        return Deck != null && Deck.Boneyard != null && Deck.Boneyard.Count > 0;
-        // if (Mode == GameMode.Block)
-        // {
-        //     return false;
-        // }
-        // else
-        // {
-        //     if (Deck.RemainingCount == 0)
-        //     {
-        //         return false;
-        //     }
-        //     else
-        //     {
-        //         return true;
-        //     }
-        // }
-
+        // return Deck != null && Deck.Boneyard != null && Deck.Boneyard.Count > 0;
+        if (Mode == GameMode.Block)
+        {
+            return false;
+        }
+        else
+        {
+            if (Deck.RemainingCount == 0)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
     }
     public bool CanPlayerMakeAnyMove(int playerId)
     {
@@ -147,17 +147,33 @@ public class GameLogic
 
     public bool PlayTile(IPlayer player, DominoTile tile, PlacementSide side) //ok
     {
+        Console.WriteLine("IM HIT");
+        Console.WriteLine(tile.Left);
+        Console.WriteLine(tile.Right);
         List<DominoTile> playedTile = Board.PlayedTile;
         if (player.PlayerId != CurrentPlayer.PlayerId)
+        {
+            Console.WriteLine("invalid player");
             return false;
-
+        }
         var hand = PlayerHands[player.PlayerId];
+        Console.WriteLine($"player id is  = {player.PlayerId}");
+        foreach (var t in hand)
+        {
+            Console.WriteLine();
+            Console.Write($"{t.Left} {t.Right} |");
+        }
         if (!hand.Contains(tile))
+        {
+            Console.WriteLine("wrong tile in the player hand");
             return false;
-
+        }
         var validSides = CanPlay(tile, playedTile);
         if (!validSides.Contains(side))
+        {
+            Console.WriteLine("invalid side");
             return false;
+        }
 
         hand.Remove(tile);
         if (Board.IsEmpty)
@@ -199,7 +215,7 @@ public class GameLogic
         {
             NextPlayer();
         }
-
+        Console.WriteLine("return true");
         return true;
     }
 
@@ -253,7 +269,18 @@ public class GameLogic
         }
         return null;
     }
+    private DominoTile? DrawTileForDeal() //helper to bypass canDraw
+    {
+        if (Deck == null || Deck.Boneyard.Count == 0)
+            return null;
 
+        int index = _random.Next(Deck.Boneyard.Count);
+
+        DominoTile tile = Deck.Boneyard[index];
+        Deck.Boneyard.RemoveAt(index);
+
+        return tile;
+    }
     private void DealHands(int handSize)
     {
         foreach (var player in Players)
@@ -261,7 +288,7 @@ public class GameLogic
             PlayerHands[player.PlayerId] = new List<DominoTile>();
             for (int i = 0; i < handSize; i++)
             {
-                if (DrawRandomTile() is DominoTile tile)
+                if (DrawTileForDeal() is DominoTile tile)
                 {
                     PlayerHands[player.PlayerId].Add(tile);
                 }
@@ -397,14 +424,44 @@ public class GameLogic
 
 }
 
-public readonly struct DominoTile
+public struct DominoTile : IEquatable<DominoTile>
 {
-    public int Left { get; }
-    public int Right { get; }
+    [JsonPropertyName("left")]
+    public int Left { get; set; }
+    [JsonPropertyName("right")]
+    public int Right { get; set; }
 
     public DominoTile(int left, int right)
     {
         Left = left;
         Right = right;
+    }
+
+    public bool Equals(DominoTile other)
+    {
+        return (Left == other.Left && Right == other.Right)
+            || (Left == other.Right && Right == other.Left);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is DominoTile other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        var first = Math.Min(Left, Right);
+        var second = Math.Max(Left, Right);
+        return HashCode.Combine(first, second);
+    }
+
+    public static bool operator ==(DominoTile left, DominoTile right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(DominoTile left, DominoTile right)
+    {
+        return !left.Equals(right);
     }
 }
