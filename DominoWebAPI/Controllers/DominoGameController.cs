@@ -20,11 +20,13 @@ public class DominoGameController : ControllerBase
     [HttpPost("lobby")]
     public IActionResult CreateLobby([FromBody] CreateLobbyRequest request)
     {
+        Console.WriteLine($"host spawned {request.HostPlayerName}");
         if (string.IsNullOrWhiteSpace(request.HostPlayerName))
             return BadRequest("Host player name is required.");
 
         var session = _sessionManager.CreateLobby(request.HostPlayerName, out int hostPlayerId);
         var lobbyDto = DtoMapper.ToLobbyDto(session);
+        Console.WriteLine($"Create a game with id {lobbyDto.GameId}");
 
         return Ok(new { PlayerId = hostPlayerId, Lobby = lobbyDto });
     }
@@ -33,6 +35,7 @@ public class DominoGameController : ControllerBase
     [HttpPost("lobby/join")]
     public IActionResult JoinLobby([FromBody] JoinLobbyRequest request)
     {
+        Console.WriteLine($"a guy named {request.PlayerName} joined {request.GameId}");
         if (string.IsNullOrWhiteSpace(request.PlayerName))
             return BadRequest("Player name is required.");
 
