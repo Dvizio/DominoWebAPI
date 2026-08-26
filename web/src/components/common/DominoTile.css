@@ -139,6 +139,7 @@
 
 .domino-tile.playable {
   border-color: #22c55e;
+  border-width: 7px;
 }
 
 .domino-tile.disabled {
