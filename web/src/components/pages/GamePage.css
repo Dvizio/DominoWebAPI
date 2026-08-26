@@ -148,7 +148,7 @@
   position: relative;
   overflow: hidden;
   border-bottom: 2px solid #2e303a;
-  padding: 20px;
+  padding: 16px;
 }
 
 .board-scroll-container {
@@ -158,22 +158,84 @@
   align-items: center;
   justify-content: center;
   overflow-x: auto;
-  overflow-y: hidden;
-  padding: 20px;
+  overflow-y: auto;
+  padding: 24px;
   box-sizing: border-box;
 }
 
-.domino-chain {
-  display: inline-flex;
+.domino-snake-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 36px;
+  min-width: min-content;
+}
+
+.snake-row-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  position: relative;
+}
+
+.snake-row {
+  display: flex;
   align-items: center;
   gap: 4px;
-  padding: 20px 40px;
-  min-width: min-content;
+  padding: 4px 8px;
+}
+
+.snake-row.row-ltr {
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+.snake-row.row-rtl {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
 }
 
 .board-tile-wrapper {
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+/* Corner Connectors */
+.snake-turn-connector {
+  position: relative;
+  height: 18px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.snake-turn-connector.turn-right {
+  justify-content: flex-end;
+  padding-right: 32px;
+}
+
+.snake-turn-connector.turn-left {
+  justify-content: flex-start;
+  padding-left: 32px;
+}
+
+.connector-curve {
+  width: 24px;
+  height: 18px;
+  border: 3px dashed rgba(34, 197, 94, 0.45);
+  border-top: none;
+}
+
+.snake-turn-connector.turn-right .connector-curve {
+  border-left: none;
+  border-bottom-right-radius: 12px;
+}
+
+.snake-turn-connector.turn-left .connector-curve {
+  border-right: none;
+  border-bottom-left-radius: 12px;
 }
 
 .empty-board-placeholder {

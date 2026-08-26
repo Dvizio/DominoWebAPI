@@ -36,6 +36,8 @@ public class GameSessionManager
         if (!_lobbies.TryGetValue(gameId.ToUpper(), out var session))
             return (null, null, "Game room not found.");
 
+        session.Touch();
+
         if (session.ActiveGame != null)
             return (null, null, "Game has already started.");
 
@@ -65,6 +67,8 @@ public class GameSessionManager
         if (!_lobbies.TryGetValue(request.GameId.ToUpper(), out var session))
             return false;
 
+        session.Touch();
+
         if (session.ActiveGame != null) return false;
 
         session.Mode = request.Mode;
@@ -80,6 +84,8 @@ public class GameSessionManager
     {
         if (!_lobbies.TryGetValue(gameId.ToUpper(), out var session))
             return null;
+
+        session.Touch();
 
         if (session.HostPlayerId != requestingPlayerId)
             return null;
@@ -108,14 +114,51 @@ public class GameSessionManager
 
     public LobbySession? GetLobby(string gameId)
     {
-        _lobbies.TryGetValue(gameId.ToUpper(), out var session);
-        return session;
+        if (_lobbies.TryGetValue(gameId.ToUpper(), out var session))
+        {
+            session.Touch();
+            return session;
+        }
+        return null;
     }
 
     public GameLogic? GetGame(string gameId)
     {
         var lobby = GetLobby(gameId);
         return lobby?.ActiveGame;
+    }
+
+    public bool RemoveLobby(string gameId)
+    {
+        return _lobbies.TryRemove(gameId.ToUpper(), out _);
+    }
+
+    public int CleanupExpiredSessions(TimeSpan inactivityTimeout)
+    {
+        var now = DateTime.UtcNow;
+        int removedCount = 0;
+
+        foreach (var kvp in _lobbies)
+        {
+            var gameId = kvp.Key;
+            var session = kvp.Value;
+
+            bool isGameOver = session.ActiveGame != null && session.ActiveGame.Status == GameState.GameOver;
+            bool isIdleExpired = (now - session.LastActivityUtc) > inactivityTimeout;
+            
+            // Check if any disconnected player has exceeded the timeout (e.g. 1 hour)
+            bool hasTimedOutDisconnectedPlayer = session.DisconnectedPlayersUtc.Values.Any(dt => (now - dt) > inactivityTimeout);
+
+            if (isGameOver || isIdleExpired || hasTimedOutDisconnectedPlayer)
+            {
+                if (_lobbies.TryRemove(gameId, out _))
+                {
+                    removedCount++;
+                }
+            }
+        }
+
+        return removedCount;
     }
 
     private static string GenerateRoomCode()
@@ -125,4 +168,4 @@ public class GameSessionManager
         return new string(Enumerable.Repeat(chars, 6)
             .Select(s => s[random.Next(s.Length)]).ToArray());
     }
-}
+}

@@ -64,11 +64,15 @@ function DominoTile({
   onClick,
   size = "medium", // "small" | "medium" | "large"
   className = "",
+  reverse = false,
 }) {
   const handleClick = (e) => {
     if (disabled || !onClick) return;
     onClick(e);
   };
+
+  const firstVal = reverse ? right : left;
+  const secondVal = reverse ? left : right;
 
   return (
     <div
@@ -80,9 +84,9 @@ function DominoTile({
       tabIndex={onClick && !disabled ? 0 : undefined}
       title={`Domino [${left}|${right}]`}
     >
-      <div className="tile-half half-first">{renderPips(left)}</div>
+      <div className="tile-half half-first">{renderPips(firstVal)}</div>
       <div className="tile-divider" />
-      <div className="tile-half half-second">{renderPips(right)}</div>
+      <div className="tile-half half-second">{renderPips(secondVal)}</div>
     </div>
   );
 }

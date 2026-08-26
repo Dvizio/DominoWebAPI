@@ -1,5 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5170/api/games";
-export const HUB_URL = import.meta.env.VITE_HUB_URL || "http://localhost:5170/gameHub";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5170/api/games";
+export const HUB_URL =
+  import.meta.env.VITE_HUB_URL || "http://localhost:5170/gameHub";
 
 console.log("API URL:", API_BASE_URL);
 console.log("Hub URL:", HUB_URL);
@@ -165,6 +167,22 @@ export async function startNextRound(gameId, playerId) {
   if (!response.ok) {
     const error = await response.text();
     throw new Error(error || "Failed to start next round");
+  }
+
+  return await response.json();
+}
+
+export async function deleteLobby(gameId) {
+  const response = await fetch(
+    `${API_BASE_URL}/${encodeURIComponent(gameId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(error || "Failed to delete game lobby");
   }
 
   return await response.json();

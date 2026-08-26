@@ -8,6 +8,7 @@ import {
   drawTile,
   passTurn,
   startNextRound,
+  deleteLobby,
   HUB_URL,
 } from "../services/GameApi";
 import "./GamePage.css";
@@ -37,7 +38,6 @@ function GamePage() {
   const [validSides, setValidSides] = useState([]);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
 
   const connectionRef = useRef(null);
   const boardScrollRef = useRef(null);
@@ -46,8 +46,11 @@ function GamePage() {
   const getPlayerName = useCallback(
     (id) => {
       const numId = Number(id);
-      const found = lobbyPlayers.find((p) => Number(p.playerId) === numId);
-      if (found) return found.playerName;
+      const list = lobbyPlayers || [];
+      const found = list.find((p) => Number(p?.playerId ?? p?.PlayerId) === numId);
+      if (found && (found.playerName || found.PlayerName)) {
+        return found.playerName || found.PlayerName;
+      }
       return `Player ${numId}`;
     },
     [lobbyPlayers]
@@ -58,11 +61,16 @@ function GamePage() {
     if (!gameId || playerId === null) return;
     try {
       const data = await getGameState(gameId, playerId);
-      if (data.game) {
-        setGameState(data.game);
+      if (data) {
+        const gameObj = data.game ?? data.Game ?? (data.yourHand || data.YourHand ? data : null);
+        if (gameObj) {
+          setGameState(gameObj);
+        }
+        const lobbyObj = data.lobby ?? data.Lobby;
+        if (lobbyObj?.players) {
+          setLobbyPlayers(lobbyObj.players);
+        }
         setError("");
-      } else if (data.lobby) {
-        setLobbyPlayers(data.lobby.players || []);
       }
     } catch (err) {
       console.error("Error fetching game state:", err);
@@ -116,29 +124,28 @@ function GamePage() {
     }
 
     let isMounted = true;
+    let hubConnection = null;
 
     const connectHub = async () => {
-      if (isConnecting || connectionRef.current) return;
-      setIsConnecting(true);
-
       try {
-        const hubConnection = new HubConnectionBuilder()
+        hubConnection = new HubConnectionBuilder()
           .withUrl(HUB_URL)
           .configureLogging(LogLevel.Information)
           .withAutomaticReconnect()
           .build();
 
-        hubConnection.on("GameStateUpdated", (dto) => {
+        hubConnection.on("GameStateUpdated", () => {
           if (!isMounted) return;
-          console.log("SignalR GameStateUpdated received:", dto);
-          if (dto && (dto.yourHand || dto.YourHand)) {
-            setGameState(dto);
-          } else {
-            // Re-fetch state for this specific player
-            refreshGameState();
-          }
+          console.log("SignalR GameStateUpdated received -> refreshing state");
+          refreshGameState();
           setSelectedTile(null);
           setValidSides([]);
+        });
+
+        hubConnection.on("LobbyClosed", (msg) => {
+          if (!isMounted) return;
+          alert(msg || "Game table has been closed.");
+          navigate("/");
         });
 
         hubConnection.on("Error", (msg) => {
@@ -146,31 +153,51 @@ function GamePage() {
           setError(msg);
         });
 
+        hubConnection.onreconnected(async () => {
+          if (!isMounted) return;
+          console.log("SignalR Reconnected -> rejoining group");
+          try {
+            await hubConnection.invoke("JoinGame", gameId, playerId);
+          } catch (e) {
+            console.error("Rejoin group error:", e);
+          }
+          refreshGameState();
+        });
+
+        hubConnection.onreconnecting(() => {
+          if (!isMounted) return;
+          setError("Connection lost, reconnecting...");
+        });
+
+        hubConnection.onclose(() => {
+          if (!isMounted) return;
+          console.log("GameHub connection closed");
+        });
+
         await hubConnection.start();
 
-        if (isMounted) {
-          connectionRef.current = hubConnection;
-          console.log("Connected to SignalR GameHub on GamePage");
-
-          // Join the room group
-          try {
-            await hubConnection.invoke("JoinGame", gameId);
-          } catch (e) {
-            console.log("JoinGame invocation note:", e);
-          }
-
-          // Initial state fetch
-          await refreshGameState();
+        if (!isMounted) {
+          await hubConnection.stop();
+          return;
         }
+
+        connectionRef.current = hubConnection;
+        console.log("Connected to SignalR GameHub on GamePage");
+
+        // Join the room group and pass playerId to register reconnection
+        try {
+          await hubConnection.invoke("JoinGame", gameId, playerId);
+        } catch (e) {
+          console.log("JoinGame invocation note:", e);
+        }
+
+        // Initial state fetch
+        await refreshGameState();
       } catch (err) {
         console.error("Hub connection error:", err);
         if (isMounted) {
           setError("Failed to connect to real-time game updates");
           refreshGameState();
-        }
-      } finally {
-        if (isMounted) {
-          setIsConnecting(false);
         }
       }
     };
@@ -180,8 +207,10 @@ function GamePage() {
     return () => {
       isMounted = false;
       if (connectionRef.current) {
-        connectionRef.current.stop();
+        connectionRef.current.stop().catch(() => {});
         connectionRef.current = null;
+      } else if (hubConnection) {
+        hubConnection.stop().catch(() => {});
       }
     };
   }, [gameId, playerId, navigate, refreshGameState]);
@@ -208,6 +237,8 @@ function GamePage() {
       }
       setSelectedTile(null);
       setValidSides([]);
+      // Refresh to ensure all client data is synchronized
+      await refreshGameState();
     } catch (err) {
       console.error("Play tile error:", err);
       setError(err.message || "Failed to play tile");
@@ -233,7 +264,7 @@ function GamePage() {
 
     const tLeft = Number(tile.left ?? tile.Left ?? 0);
     const tRight = Number(tile.right ?? tile.Right ?? 0);
-    const played = gameState.playedBoard || gameState.PlayedBoard || [];
+    const played = gameState?.playedBoard || gameState?.PlayedBoard || [];
 
     // Opening move on an empty board: auto-play immediately!
     if (played.length === 0) {
@@ -245,8 +276,8 @@ function GamePage() {
     if (sides.length === 0) {
       const firstTile = played[0];
       const lastTile = played[played.length - 1];
-      const boardLeft = Number(firstTile.left ?? firstTile.Left ?? 0);
-      const boardRight = Number(lastTile.right ?? lastTile.Right ?? 0);
+      const boardLeft = Number(firstTile?.left ?? firstTile?.Left ?? 0);
+      const boardRight = Number(lastTile?.right ?? lastTile?.Right ?? 0);
       setError(
         `Tile [${tLeft}|${tRight}] cannot match either end of the board (Ends are: ${boardLeft} and ${boardRight}).`
       );
@@ -291,6 +322,7 @@ function GamePage() {
       if (updatedState) {
         setGameState(updatedState);
       }
+      await refreshGameState();
     } catch (err) {
       setError(err.message || "Cannot draw tile");
     } finally {
@@ -313,6 +345,7 @@ function GamePage() {
       }
       setSelectedTile(null);
       setValidSides([]);
+      await refreshGameState();
     } catch (err) {
       setError(err.message || "Cannot pass turn");
     } finally {
@@ -332,6 +365,7 @@ function GamePage() {
       }
       setSelectedTile(null);
       setValidSides([]);
+      await refreshGameState();
     } catch (err) {
       setError(err.message || "Failed to start next round");
     } finally {
@@ -339,11 +373,22 @@ function GamePage() {
     }
   };
 
-  const handleLeaveGame = () => {
+  const handleLeaveGame = async () => {
     if (connectionRef.current) {
       connectionRef.current.stop();
       connectionRef.current = null;
     }
+
+    const currentStatus = gameState?.status ?? gameState?.Status;
+    // If game is over, clean up the lobby
+    if (currentStatus === "GameOver") {
+      try {
+        await deleteLobby(gameId);
+      } catch (e) {
+        console.log("Delete lobby note:", e);
+      }
+    }
+
     navigate("/");
   };
 
@@ -375,6 +420,23 @@ function GamePage() {
 
   const canDraw = isMyTurn && isPlaying && deckCount > 0;
   const canPass = isMyTurn && isPlaying && !hasPlayableTiles();
+
+  // Serpentine board row grouping
+  const TILES_PER_ROW = 6;
+  const snakeRows = [];
+  if (playedBoard && playedBoard.length > 0) {
+    for (let i = 0; i < playedBoard.length; i += TILES_PER_ROW) {
+      const chunk = playedBoard.slice(i, i + TILES_PER_ROW);
+      const rowIndex = Math.floor(i / TILES_PER_ROW);
+      const isRtl = rowIndex % 2 === 1;
+      snakeRows.push({
+        rowIndex,
+        isRtl,
+        tiles: chunk,
+        startIndex: i,
+      });
+    }
+  }
 
   return (
     <div className="game-page-container">
@@ -429,45 +491,68 @@ function GamePage() {
       <main className="game-board-table">
         <div className="board-scroll-container" ref={boardScrollRef}>
           {playedBoard.length > 0 ? (
-            <div className="domino-chain">
-              {/* Left End Placement Choice Button */}
-              {selectedTile && validSides.includes(0) && (
-                <button
-                  className="placement-btn place-left-btn"
-                  onClick={() => executePlayTile(selectedTile, 0)}
-                  disabled={actionLoading}
-                >
-                  ⬅ Place Left
-                </button>
-              )}
+            <div className="domino-snake-board">
+              {snakeRows.map((row, rIdx) => {
+                const isFirstRow = rIdx === 0;
+                const isLastRow = rIdx === snakeRows.length - 1;
+                const hasNextRow = rIdx < snakeRows.length - 1;
+                const isRtl = row.isRtl;
 
-              {/* Played Domino Chain */}
-              {playedBoard.map((tile, idx) => {
-                const tL = Number(tile.left ?? tile.Left ?? 0);
-                const tR = Number(tile.right ?? tile.Right ?? 0);
-                const isDouble = tL === tR;
                 return (
-                  <div key={idx} className="board-tile-wrapper">
-                    <DominoTile
-                      left={tL}
-                      right={tR}
-                      orientation={isDouble ? "vertical" : "horizontal"}
-                      size="medium"
-                    />
+                  <div key={row.rowIndex} className="snake-row-container">
+                    <div className={`snake-row ${isRtl ? "row-rtl" : "row-ltr"}`}>
+                      {/* Left End Placement Choice Button (Attached to Tile 0 at start of first row) */}
+                      {isFirstRow && selectedTile && validSides.includes(0) && (
+                        <button
+                          className="placement-btn place-left-btn"
+                          onClick={() => executePlayTile(selectedTile, 0)}
+                          disabled={actionLoading}
+                        >
+                          ⬅ Place Left
+                        </button>
+                      )}
+
+                      {/* Played Domino Chain Tiles */}
+                      {row.tiles.map((tile, tileOffset) => {
+                        const globalIdx = row.startIndex + tileOffset;
+                        const tL = Number(tile?.left ?? tile?.Left ?? 0);
+                        const tR = Number(tile?.right ?? tile?.Right ?? 0);
+                        const isDouble = tL === tR;
+
+                        return (
+                          <div key={globalIdx} className="board-tile-wrapper">
+                            <DominoTile
+                              left={tL}
+                              right={tR}
+                              orientation={isDouble ? "vertical" : "horizontal"}
+                              size="medium"
+                              reverse={isRtl}
+                            />
+                          </div>
+                        );
+                      })}
+
+                      {/* Right End Placement Choice Button (Attached to Tile N-1 at end of last row) */}
+                      {isLastRow && selectedTile && validSides.includes(1) && (
+                        <button
+                          className="placement-btn place-right-btn"
+                          onClick={() => executePlayTile(selectedTile, 1)}
+                          disabled={actionLoading}
+                        >
+                          Place Right ➡
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Corner connector to next row */}
+                    {hasNextRow && (
+                      <div className={`snake-turn-connector ${isRtl ? "turn-left" : "turn-right"}`}>
+                        <div className="connector-curve" />
+                      </div>
+                    )}
                   </div>
                 );
               })}
-
-              {/* Right End Placement Choice Button */}
-              {selectedTile && validSides.includes(1) && (
-                <button
-                  className="placement-btn place-right-btn"
-                  onClick={() => executePlayTile(selectedTile, 1)}
-                  disabled={actionLoading}
-                >
-                  Place Right ➡
-                </button>
-              )}
             </div>
           ) : (
             <div className="empty-board-placeholder">

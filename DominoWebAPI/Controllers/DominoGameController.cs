@@ -58,14 +58,16 @@ public class DominoGameController : ControllerBase
 
     //PUT api/games/lobby/settings - Host updates settings
     [HttpPut("lobby/settings")]
-    public IActionResult UpdateSettings([FromBody] UpdateSettingsRequest request)
+    public async Task<IActionResult> UpdateSettings([FromBody] UpdateSettingsRequest request)
     {
         bool updated = _sessionManager.UpdateSettings(request);
         if (!updated)
             return BadRequest("Could not update settings. Room might not exist or game is already active.");
 
         var session = _sessionManager.GetLobby(request.GameId);
-        return Ok(DtoMapper.ToLobbyDto(session!));
+        var lobbyDto = DtoMapper.ToLobbyDto(session!);
+        await _hubContext.Clients.Group(request.GameId.ToUpper()).SendAsync("LobbyUpdated", lobbyDto);
+        return Ok(lobbyDto);
     }
 
     // POST api/games/start - Host starts the match
@@ -112,32 +114,53 @@ public class DominoGameController : ControllerBase
         if (lobby == null)
             return NotFound("Game session not found.");
 
+        lobby.Touch();
 
         if (lobby.ActiveGame == null)
         {
             return Ok(new { IsActive = false, Lobby = DtoMapper.ToLobbyDto(lobby) });
         }
 
-        return Ok(new { IsActive = true, Game = DtoMapper.ToGameDto(gameId, lobby.ActiveGame, playerId) });
+        return Ok(new
+        {
+            IsActive = true,
+            Game = DtoMapper.ToGameDto(gameId, lobby.ActiveGame, playerId),
+            Lobby = DtoMapper.ToLobbyDto(lobby)
+        });
+    }
+
+    //DELETE api/games/{gameId} - Delete/clean up lobby when game over or host exits
+    [HttpDelete("{gameId}")]
+    public async Task<IActionResult> DeleteLobby(string gameId)
+    {
+        bool removed = _sessionManager.RemoveLobby(gameId);
+        if (removed)
+        {
+            await _hubContext.Clients.Group(gameId.ToUpper()).SendAsync("LobbyClosed", "Game session has ended.");
+            return Ok(new { Message = "Game session removed successfully." });
+        }
+        return NotFound("Game session not found.");
     }
 
     //POST api/games/play - Play a tile
     [HttpPost("play")]
     public async Task<IActionResult> PlayTile([FromBody] PlayTileRequest request)
     {
-        var game = _sessionManager.GetGame(request.GameId);
-        if (game == null)
+        var lobby = _sessionManager.GetLobby(request.GameId);
+        if (lobby == null || lobby.ActiveGame == null)
             return NotFound("Active game session not found.");
 
+        var game = lobby.ActiveGame;
         var player = game.Players.FirstOrDefault(p => p.PlayerId == request.PlayerId);
         if (player == null)
             return BadRequest("Player is not part of this session.");
 
         bool success = game.PlayTile(player, request.Tile, request.Side);
-        Console.WriteLine($"im from the controller {request.Tile.Left} {request.Tile.Right} {request.Side} ");
+        Console.WriteLine($"PlayTile request {request.Tile.Left}|{request.Tile.Right} side={request.Side} success={success}");
         if (!success)
             return BadRequest("Invalid move or it is not your turn.");
 
+        lobby.Touch();
         await _hubContext.Clients.Group(request.GameId.ToUpper()).SendAsync("GameStateUpdated");
 
         return Ok(DtoMapper.ToGameDto(request.GameId, game, request.PlayerId));
@@ -147,10 +170,11 @@ public class DominoGameController : ControllerBase
     [HttpPost("draw")]
     public async Task<IActionResult> DrawTile([FromBody] PlayerActionRequest request)
     {
-        var game = _sessionManager.GetGame(request.GameId);
-        if (game == null)
+        var lobby = _sessionManager.GetLobby(request.GameId);
+        if (lobby == null || lobby.ActiveGame == null)
             return NotFound("Active game session not found.");
 
+        var game = lobby.ActiveGame;
         if (game.CurrentPlayer.PlayerId != request.PlayerId)
             return BadRequest("It is not your turn.");
 
@@ -160,6 +184,7 @@ public class DominoGameController : ControllerBase
         if (!drew)
             return BadRequest("Cannot draw (boneyard is empty or mode is Block).");
 
+        lobby.Touch();
         await _hubContext.Clients.Group(request.GameId.ToUpper()).SendAsync("GameStateUpdated");
 
         return Ok(DtoMapper.ToGameDto(request.GameId, game, request.PlayerId));
@@ -169,16 +194,18 @@ public class DominoGameController : ControllerBase
     [HttpPost("pass")]
     public async Task<IActionResult> PassTurn([FromBody] PlayerActionRequest request)
     {
-        var game = _sessionManager.GetGame(request.GameId);
-        if (game == null)
+        var lobby = _sessionManager.GetLobby(request.GameId);
+        if (lobby == null || lobby.ActiveGame == null)
             return NotFound("Active game session not found.");
 
+        var game = lobby.ActiveGame;
         if (game.CurrentPlayer.PlayerId != request.PlayerId)
             return BadRequest("It is not your turn.");
 
         var player = game.Players.First(p => p.PlayerId == request.PlayerId);
         game.PassTurn(player);
 
+        lobby.Touch();
         await _hubContext.Clients.Group(request.GameId.ToUpper()).SendAsync("GameStateUpdated");
 
         return Ok(DtoMapper.ToGameDto(request.GameId, game, request.PlayerId));
