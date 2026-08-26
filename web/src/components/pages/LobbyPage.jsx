@@ -1,26 +1,43 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
-import { updateSettings, startGame } from "../services/GameApi";
+import { updateSettings, startGame, HUB_URL } from "../services/GameApi";
 
 function LobbyPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const connectionRef = useRef(null);
+    const [isConnecting, setIsConnecting] = useState(false);
     
-    // Remove unused setters - we only need the values
+    // State initialization from location state
     const [lobby, setLobby] = useState(() => {
         const state = location.state;
         return state?.lobby || null;
     });
+    const lobbyRef = useRef(lobby);
+    useEffect(() => {
+        lobbyRef.current = lobby;
+    }, [lobby]);
+    
     const [playerId] = useState(() => {
         const state = location.state;
         return state?.playerId || null;
     });
+    
     const [gameId] = useState(() => {
         const state = location.state;
         return state?.lobby?.gameId || "";
     });
+    
+    const [playerName] = useState(() => {
+        const state = location.state;
+        if (state?.lobby && state?.playerId) {
+            const player = state.lobby.players.find(p => p.playerId === state.playerId);
+            return player?.playerName || "";
+        }
+        return "";
+    });
+    
     const [isHost, setIsHost] = useState(() => {
         const state = location.state;
         if (state?.lobby && state?.playerId) {
@@ -29,6 +46,7 @@ function LobbyPage() {
         }
         return false;
     });
+    
     const [settings, setSettings] = useState(() => {
         const state = location.state;
         if (state?.lobby) {
@@ -48,10 +66,12 @@ function LobbyPage() {
             startingRule: 0
         };
     });
+    
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
 
+    // Connect to SignalR hub
     useEffect(() => {
         // Redirect if no lobby data
         if (!lobby || !playerId) {
@@ -59,16 +79,23 @@ function LobbyPage() {
             return;
         }
 
-        // Connect to SignalR hub when component mounts
+        let isMounted = true;
+
         const connectToHub = async () => {
+            if (isConnecting || connectionRef.current) return;
+            
             try {
+                setIsConnecting(true);
+                
                 const hubConnection = new HubConnectionBuilder()
-                    .withUrl("http://localhost:5170/gamehub") // Update with your URL
+                    .withUrl(HUB_URL)
                     .configureLogging(LogLevel.Information)
+                    .withAutomaticReconnect() // Add auto-reconnect
                     .build();
 
                 // Listen for lobby updates
                 hubConnection.on("LobbyUpdated", (updatedLobby) => {
+                    if (!isMounted) return;
                     console.log("Lobby updated:", updatedLobby);
                     setLobby(updatedLobby);
                     
@@ -79,27 +106,61 @@ function LobbyPage() {
 
                 // Listen for errors
                 hubConnection.on("Error", (errorMessage) => {
+                    if (!isMounted) return;
                     setError(errorMessage);
                 });
 
                 // Listen for game started
                 hubConnection.on("GameStarted", () => {
+                    if (!isMounted) return;
                     console.log("Game started!");
                     navigate(`/game/${gameId}`, { 
-                        state: { playerId, gameId } 
+                        state: { playerId, gameId, lobby: lobbyRef.current } 
                     });
                 });
 
-                await hubConnection.start();
-                connectionRef.current = hubConnection;
-                console.log("Connected to SignalR hub");
+                // Handle connection state changes
+                hubConnection.onreconnecting(() => {
+                    if (!isMounted) return;
+                    setError("Connection lost, reconnecting...");
+                });
 
-                // Join the lobby group
-                // await hubConnection.invoke("JoinLobby", gameId, "Player");
+                hubConnection.onreconnected(() => {
+                    if (!isMounted) return;
+                    setError("");
+                    console.log("Reconnected to SignalR hub");
+                });
+
+                hubConnection.onclose(() => {
+                    if (!isMounted) return;
+                    console.log("Connection closed");
+                    setError("Disconnected from server");
+                });
+
+                await hubConnection.start();
+                
+                if (isMounted) {
+                    connectionRef.current = hubConnection;
+                    console.log("Connected to SignalR hub in LobbyPage");
+                    setError("");
+                    
+                    // Join the SignalR room group for broadcasts
+                    try {
+                        await hubConnection.invoke("JoinGame", gameId);
+                    } catch (joinError) {
+                        console.error("Error joining game group:", joinError);
+                    }
+                }
                 
             } catch (err) {
-                console.error("Error connecting to hub:", err);
-                setError("Failed to connect to game server");
+                if (isMounted) {
+                    console.error("Error connecting to hub:", err);
+                    setError("Failed to connect to game server");
+                }
+            } finally {
+                if (isMounted) {
+                    setIsConnecting(false);
+                }
             }
         };
 
@@ -107,13 +168,14 @@ function LobbyPage() {
 
         // Clean up connection on unmount
         return () => {
+            isMounted = false;
             if (connectionRef.current) {
                 connectionRef.current.stop();
                 connectionRef.current = null;
             }
         };
-     
-    }, [lobby, playerId, gameId, navigate]); // We use connectionRef, not connection state
+        
+    }, [gameId, playerId, navigate]);
 
     const handleSettingsChange = (e) => {
         const { name, value } = e.target;
@@ -133,6 +195,7 @@ function LobbyPage() {
         setError("");
 
         try {
+            // Update via HTTP API
             const updatedLobby = await updateSettings({
                 gameId: gameId,
                 mode: settings.mode,
@@ -181,13 +244,10 @@ function LobbyPage() {
             // Start game via HTTP API
             await startGame(gameId, playerId);
             
-            // Also notify via SignalR
-            if (connectionRef.current) {
-                await connectionRef.current.invoke("StartGame", gameId, playerId);
-            }
-
-            // Navigate will happen via SignalR event "GameStarted"
-            
+            // Navigate host directly to game page
+            navigate(`/game/${gameId}`, { 
+                state: { playerId, gameId, lobby: lobbyRef.current } 
+            });
         } catch (err) {
             setError(err.message || "Failed to start game");
             setIsStarting(false);

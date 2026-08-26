@@ -17,7 +17,8 @@ public class GameHub : Hub
     public async Task<object> CreateLobby(string hostName)
     {
         var session = _sessionManager.CreateLobby(hostName, out int hostPlayerId);
-        await Groups.AddToGroupAsync(Context.ConnectionId, session.GameId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, session.GameId.ToUpper());
+        Console.WriteLine($"lobby created {hostName}");
 
         return new { PlayerId = hostPlayerId, Lobby = DtoMapper.ToLobbyDto(session) };
     }
@@ -31,10 +32,20 @@ public class GameHub : Hub
             await Clients.Caller.SendAsync("Error", errorMessage);
             return;
         }
+        Console.WriteLine($"lobby created {playerName}");
+
 
         await Groups.AddToGroupAsync(Context.ConnectionId, session.GameId.ToUpper());
         await Clients.Caller.SendAsync("JoinedSuccess", newPlayerId);
         await Clients.Group(session.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(session));
+    }
+
+    public async Task JoinGame(string gameId)
+    {
+        if (!string.IsNullOrWhiteSpace(gameId))
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, gameId.ToUpper());
+        }
     }
 
     public async Task UpdateSettings(UpdateSettingsRequest settings)
@@ -52,7 +63,8 @@ public class GameHub : Hub
 
     public async Task StartGame(string gameId, int playerId)
     {
-        var game = _sessionManager.StartGame(gameId, playerId);
+        var game = _sessionManager.GetGame(gameId) ?? _sessionManager.StartGame(gameId, playerId);
+        Console.WriteLine($"Game with {gameId} started");
         if (game != null)
         {
             await Clients.Group(gameId.ToUpper()).SendAsync("GameStarted");

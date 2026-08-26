@@ -1,0 +1,148 @@
+.domino-tile {
+  background-color: #f8f6f0;
+  border: 2px solid #2d2d34;
+  border-radius: 6px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+  display: inline-flex;
+  user-select: none;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  cursor: default;
+  position: relative;
+}
+
+.domino-tile[role="button"] {
+  cursor: pointer;
+}
+
+/* Orientations */
+.domino-tile.vertical {
+  flex-direction: column;
+}
+
+.domino-tile.horizontal {
+  flex-direction: row;
+}
+
+/* Sizing */
+.domino-tile.size-small.vertical {
+  width: 28px;
+  height: 56px;
+}
+.domino-tile.size-small.horizontal {
+  width: 56px;
+  height: 28px;
+}
+
+.domino-tile.size-medium.vertical {
+  width: 44px;
+  height: 88px;
+}
+.domino-tile.size-medium.horizontal {
+  width: 88px;
+  height: 44px;
+}
+
+.domino-tile.size-large.vertical {
+  width: 56px;
+  height: 112px;
+}
+.domino-tile.size-large.horizontal {
+  width: 112px;
+  height: 56px;
+}
+
+/* Halves & Divider */
+.tile-half {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.domino-tile.vertical .tile-divider {
+  height: 2px;
+  width: 80%;
+  margin: 0 auto;
+  background-color: #8c887b;
+  border-radius: 1px;
+}
+
+.domino-tile.horizontal .tile-divider {
+  width: 2px;
+  height: 80%;
+  margin: auto 0;
+  background-color: #8c887b;
+  border-radius: 1px;
+}
+
+/* Pip Grids */
+.pip-grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  max-width: 32px;
+  max-height: 32px;
+  align-items: center;
+  justify-items: center;
+}
+
+.size-small .pip-grid {
+  max-width: 20px;
+  max-height: 20px;
+}
+
+.size-large .pip-grid {
+  max-width: 42px;
+  max-height: 42px;
+}
+
+.pip-grid-3x3 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
+.pip-grid-3x4 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+}
+
+.pip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: transparent;
+}
+
+.size-small .pip-dot {
+  width: 4px;
+  height: 4px;
+}
+
+.size-large .pip-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.pip-dot.active {
+  background-color: #1a1a24;
+}
+
+/* Interactive States */
+.domino-tile.selected {
+  border-color: #aa3bff;
+  box-shadow: 0 0 0 3px rgba(170, 59, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.domino-tile.playable {
+  border-color: #22c55e;
+}
+
+.domino-tile.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
