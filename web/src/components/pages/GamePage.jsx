@@ -20,24 +20,16 @@ function GamePage() {
   // Retrieve playerId from router state or sessionStorage
   const [playerId] = useState(() => {
     const fromState = location.state?.playerId;
-    if (fromState) {
+    if (fromState !== undefined && fromState !== null) {
       sessionStorage.setItem(`domino_player_${gameId}`, String(fromState));
       return Number(fromState);
     }
     const fromStorage = sessionStorage.getItem(`domino_player_${gameId}`);
-    return fromStorage ? Number(fromStorage) : null;
+    return fromStorage !== null ? Number(fromStorage) : null;
   });
 
   const [lobbyPlayers, setLobbyPlayers] = useState(() => {
     return location.state?.lobby?.players || [];
-  });
-
-  const [isHost, setIsHost] = useState(() => {
-    if (location.state?.lobby && playerId) {
-      const host = location.state.lobby.players.find((p) => p.isHost);
-      return host?.playerId === playerId;
-    }
-    return false;
   });
 
   const [gameState, setGameState] = useState(null);
@@ -53,16 +45,17 @@ function GamePage() {
   // Helper to get player name by id
   const getPlayerName = useCallback(
     (id) => {
-      const found = lobbyPlayers.find((p) => p.playerId === id);
+      const numId = Number(id);
+      const found = lobbyPlayers.find((p) => Number(p.playerId) === numId);
       if (found) return found.playerName;
-      return `Player ${id}`;
+      return `Player ${numId}`;
     },
     [lobbyPlayers]
   );
 
   // Fetch full game state from REST
   const refreshGameState = useCallback(async () => {
-    if (!gameId || !playerId) return;
+    if (!gameId || playerId === null) return;
     try {
       const data = await getGameState(gameId, playerId);
       if (data.game) {
@@ -81,9 +74,9 @@ function GamePage() {
   const calculateValidSides = useCallback(
     (tile, board) => {
       if (!tile) return [];
-      const played = board || gameState?.playedBoard || [];
+      const played = board || gameState?.playedBoard || gameState?.PlayedBoard || [];
       if (played.length === 0) {
-        return [0, 1]; // First tile can be placed either side
+        return [0]; // First tile opening move places to Left (side 0)
       }
 
       const firstTile = played[0];
@@ -108,17 +101,16 @@ function GamePage() {
 
   // Check if player has any playable tiles in hand
   const hasPlayableTiles = useCallback(() => {
-    if (!gameState?.yourHand || gameState.yourHand.length === 0) return false;
-    const played = gameState.playedBoard || [];
+    const hand = gameState?.yourHand || gameState?.YourHand || [];
+    if (hand.length === 0) return false;
+    const played = gameState?.playedBoard || gameState?.PlayedBoard || [];
     if (played.length === 0) return true;
-    return gameState.yourHand.some(
-      (tile) => calculateValidSides(tile, played).length > 0
-    );
+    return hand.some((tile) => calculateValidSides(tile, played).length > 0);
   }, [gameState, calculateValidSides]);
 
   // SignalR connection setup
   useEffect(() => {
-    if (!gameId || !playerId) {
+    if (!gameId || playerId === null) {
       navigate("/");
       return;
     }
@@ -139,7 +131,7 @@ function GamePage() {
         hubConnection.on("GameStateUpdated", (dto) => {
           if (!isMounted) return;
           console.log("SignalR GameStateUpdated received:", dto);
-          if (dto && dto.yourHand) {
+          if (dto && (dto.yourHand || dto.YourHand)) {
             setGameState(dto);
           } else {
             // Re-fetch state for this specific player
@@ -174,7 +166,6 @@ function GamePage() {
         console.error("Hub connection error:", err);
         if (isMounted) {
           setError("Failed to connect to real-time game updates");
-          // Still fetch initial state via REST
           refreshGameState();
         }
       } finally {
@@ -197,45 +188,12 @@ function GamePage() {
 
   // Scroll board into center view when playedBoard changes
   useEffect(() => {
-    if (boardScrollRef.current) {
+    const played = gameState?.playedBoard || gameState?.PlayedBoard;
+    if (boardScrollRef.current && played && played.length > 0) {
       boardScrollRef.current.scrollLeft =
         (boardScrollRef.current.scrollWidth - boardScrollRef.current.clientWidth) / 2;
     }
-  }, [gameState?.playedBoard]);
-
-  // Handle tile selection from player hand
-  const handleSelectTile = (tile) => {
-    if (gameState?.currentPlayerId !== playerId) return;
-    if (gameState?.status !== "Playing") return;
-
-    if (
-      selectedTile &&
-      selectedTile.left === tile.left &&
-      selectedTile.right === tile.right
-    ) {
-      // Toggle unselect
-      setSelectedTile(null);
-      setValidSides([]);
-      return;
-    }
-
-    const sides = calculateValidSides(tile, gameState.playedBoard);
-    if (sides.length === 0) {
-      setError("This tile cannot be played on either end of the board.");
-      setSelectedTile(null);
-      setValidSides([]);
-      return;
-    }
-
-    setError("");
-    setSelectedTile(tile);
-    setValidSides(sides);
-
-    // If only one side is valid, auto-play for smooth UX
-    if (sides.length === 1) {
-      executePlayTile(tile, sides[0]);
-    }
-  };
+  }, [gameState?.playedBoard, gameState?.PlayedBoard]);
 
   // Execute playing a tile to a chosen side
   const executePlayTile = async (tile, side) => {
@@ -245,25 +203,94 @@ function GamePage() {
 
     try {
       const updatedState = await playTile(gameId, playerId, tile, side);
-      setGameState(updatedState);
+      if (updatedState) {
+        setGameState(updatedState);
+      }
       setSelectedTile(null);
       setValidSides([]);
     } catch (err) {
+      console.error("Play tile error:", err);
       setError(err.message || "Failed to play tile");
     } finally {
       setActionLoading(false);
     }
   };
 
+  // Handle tile click from player hand
+  const handleSelectTile = (tile) => {
+    const curPlayerId = Number(gameState?.currentPlayerId ?? gameState?.CurrentPlayerId);
+    const myPlayerId = Number(playerId);
+    const status = gameState?.status ?? gameState?.Status;
+
+    if (curPlayerId !== myPlayerId) {
+      setError(`It is not your turn (Waiting for ${getPlayerName(curPlayerId)}).`);
+      return;
+    }
+    if (status !== "Playing") {
+      setError("Game is not currently active.");
+      return;
+    }
+
+    const tLeft = Number(tile.left ?? tile.Left ?? 0);
+    const tRight = Number(tile.right ?? tile.Right ?? 0);
+    const played = gameState.playedBoard || gameState.PlayedBoard || [];
+
+    // Opening move on an empty board: auto-play immediately!
+    if (played.length === 0) {
+      executePlayTile(tile, 0);
+      return;
+    }
+
+    const sides = calculateValidSides(tile, played);
+    if (sides.length === 0) {
+      const firstTile = played[0];
+      const lastTile = played[played.length - 1];
+      const boardLeft = Number(firstTile.left ?? firstTile.Left ?? 0);
+      const boardRight = Number(lastTile.right ?? lastTile.Right ?? 0);
+      setError(
+        `Tile [${tLeft}|${tRight}] cannot match either end of the board (Ends are: ${boardLeft} and ${boardRight}).`
+      );
+      setSelectedTile(null);
+      setValidSides([]);
+      return;
+    }
+
+    // If only one side is valid, auto-play for instant placement!
+    if (sides.length === 1) {
+      executePlayTile(tile, sides[0]);
+      return;
+    }
+
+    // If both Left and Right are valid:
+    // If tile is already selected, clicking it again plays to Left
+    if (
+      selectedTile &&
+      Number(selectedTile.left ?? selectedTile.Left) === tLeft &&
+      Number(selectedTile.right ?? selectedTile.Right) === tRight
+    ) {
+      executePlayTile(tile, 0);
+      return;
+    }
+
+    // Otherwise, select the tile and show Left / Right buttons on the board
+    setError("");
+    setSelectedTile(tile);
+    setValidSides(sides);
+  };
+
   // Handle drawing a tile
   const handleDrawTile = async () => {
-    if (gameState?.currentPlayerId !== playerId) return;
+    const curPlayerId = Number(gameState?.currentPlayerId ?? gameState?.CurrentPlayerId);
+    if (curPlayerId !== Number(playerId)) return;
+
     setActionLoading(true);
     setError("");
 
     try {
       const updatedState = await drawTile(gameId, playerId);
-      setGameState(updatedState);
+      if (updatedState) {
+        setGameState(updatedState);
+      }
     } catch (err) {
       setError(err.message || "Cannot draw tile");
     } finally {
@@ -273,13 +300,17 @@ function GamePage() {
 
   // Handle passing turn
   const handlePassTurn = async () => {
-    if (gameState?.currentPlayerId !== playerId) return;
+    const curPlayerId = Number(gameState?.currentPlayerId ?? gameState?.CurrentPlayerId);
+    if (curPlayerId !== Number(playerId)) return;
+
     setActionLoading(true);
     setError("");
 
     try {
       const updatedState = await passTurn(gameId, playerId);
-      setGameState(updatedState);
+      if (updatedState) {
+        setGameState(updatedState);
+      }
       setSelectedTile(null);
       setValidSides([]);
     } catch (err) {
@@ -296,7 +327,9 @@ function GamePage() {
 
     try {
       const updatedState = await startNextRound(gameId, playerId);
-      setGameState(updatedState);
+      if (updatedState) {
+        setGameState(updatedState);
+      }
       setSelectedTile(null);
       setValidSides([]);
     } catch (err) {
@@ -323,12 +356,25 @@ function GamePage() {
     );
   }
 
-  const isMyTurn = gameState.currentPlayerId === playerId;
-  const isPlaying = gameState.status === "Playing";
-  const isRoundOver = gameState.status === "RoundOver";
-  const isGameOver = gameState.status === "GameOver";
-  const canDraw = isMyTurn && gameState.remainingDeckCount > 0;
-  const canPass = isMyTurn && !hasPlayableTiles();
+  // Normalize normalized properties from gameState
+  const status = gameState.status ?? gameState.Status ?? "";
+  const curPlayerId = Number(gameState.currentPlayerId ?? gameState.CurrentPlayerId);
+  const myPlayerId = Number(playerId);
+  const isMyTurn = curPlayerId === myPlayerId;
+  const isPlaying = status === "Playing";
+  const isRoundOver = status === "RoundOver";
+  const isGameOver = status === "GameOver";
+  const roundNum = gameState.roundNumber ?? gameState.RoundNumber ?? 1;
+  const playedBoard = gameState.playedBoard ?? gameState.PlayedBoard ?? [];
+  const yourHand = gameState.yourHand ?? gameState.YourHand ?? [];
+  const deckCount = gameState.remainingDeckCount ?? gameState.RemainingDeckCount ?? 0;
+  const otherHandCounts = gameState.otherPlayerHandCounts ?? gameState.OtherPlayerHandCounts ?? {};
+  const scores = gameState.scores ?? gameState.Scores ?? {};
+  const roundWinnerId = gameState.roundWinnerId ?? gameState.RoundWinnerId;
+  const gameWinnerId = gameState.gameWinnerId ?? gameState.GameWinnerId;
+
+  const canDraw = isMyTurn && isPlaying && deckCount > 0;
+  const canPass = isMyTurn && isPlaying && !hasPlayableTiles();
 
   return (
     <div className="game-page-container">
@@ -338,12 +384,12 @@ function GamePage() {
           <span className="room-code-tag">
             Room: <strong>{gameId}</strong>
           </span>
-          <span className="round-badge">Round #{gameState.roundNumber || 1}</span>
+          <span className="round-badge">Round #{roundNum}</span>
         </div>
 
         <div className="header-center">
           <span className="deck-counter">
-            🀄 Deck: <strong>{gameState.remainingDeckCount}</strong> left
+            🀄 Deck: <strong>{deckCount}</strong> left
           </span>
         </div>
 
@@ -356,35 +402,33 @@ function GamePage() {
 
       {/* Opponents Ribbon (Top) */}
       <section className="opponents-section">
-        {Object.entries(gameState.otherPlayerHandCounts || {}).map(
-          ([opIdStr, tileCount]) => {
-            const opId = Number(opIdStr);
-            const isOpTurn = gameState.currentPlayerId === opId;
-            const opScore = gameState.scores?.[opId] ?? 0;
+        {Object.entries(otherHandCounts).map(([opIdStr, tileCount]) => {
+          const opId = Number(opIdStr);
+          const isOpTurn = curPlayerId === opId;
+          const opScore = scores[opId] ?? scores[opIdStr] ?? 0;
 
-            return (
-              <div
-                key={opId}
-                className={`opponent-card ${isOpTurn ? "active-turn" : ""}`}
-              >
-                <div className="opponent-header">
-                  <span className="opponent-name">{getPlayerName(opId)}</span>
-                  {isOpTurn && <span className="turn-tag">Thinking...</span>}
-                </div>
-                <div className="opponent-details">
-                  <span className="opponent-tiles">🀄 {tileCount} tiles</span>
-                  <span className="opponent-score">🏆 {opScore} pts</span>
-                </div>
+          return (
+            <div
+              key={opId}
+              className={`opponent-card ${isOpTurn ? "active-turn" : ""}`}
+            >
+              <div className="opponent-header">
+                <span className="opponent-name">{getPlayerName(opId)}</span>
+                {isOpTurn && <span className="turn-tag">Thinking...</span>}
               </div>
-            );
-          }
-        )}
+              <div className="opponent-details">
+                <span className="opponent-tiles">🀄 {tileCount} tiles</span>
+                <span className="opponent-score">🏆 {opScore} pts</span>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
       {/* Center Table / Domino Board */}
       <main className="game-board-table">
         <div className="board-scroll-container" ref={boardScrollRef}>
-          {gameState.playedBoard && gameState.playedBoard.length > 0 ? (
+          {playedBoard.length > 0 ? (
             <div className="domino-chain">
               {/* Left End Placement Choice Button */}
               {selectedTile && validSides.includes(0) && (
@@ -398,15 +442,15 @@ function GamePage() {
               )}
 
               {/* Played Domino Chain */}
-              {gameState.playedBoard.map((tile, idx) => {
-                const isDouble =
-                  Number(tile.left ?? tile.Left) ===
-                  Number(tile.right ?? tile.Right);
+              {playedBoard.map((tile, idx) => {
+                const tL = Number(tile.left ?? tile.Left ?? 0);
+                const tR = Number(tile.right ?? tile.Right ?? 0);
+                const isDouble = tL === tR;
                 return (
                   <div key={idx} className="board-tile-wrapper">
                     <DominoTile
-                      left={Number(tile.left ?? tile.Left ?? 0)}
-                      right={Number(tile.right ?? tile.Right ?? 0)}
+                      left={tL}
+                      right={tR}
                       orientation={isDouble ? "vertical" : "horizontal"}
                       size="medium"
                     />
@@ -428,9 +472,13 @@ function GamePage() {
           ) : (
             <div className="empty-board-placeholder">
               <p>The table is empty.</p>
-              {isMyTurn && (
+              {isMyTurn ? (
                 <p className="start-hint">
-                  Select any tile from your hand to make the opening move!
+                  👉 Click any tile in your hand to make the opening move!
+                </p>
+              ) : (
+                <p className="start-hint">
+                  Waiting for {getPlayerName(curPlayerId)} to make the opening move...
                 </p>
               )}
             </div>
@@ -446,21 +494,21 @@ function GamePage() {
         <div className="dock-status-bar">
           <div className="player-identity">
             <span className="my-name">
-              {getPlayerName(playerId)} (You)
+              {getPlayerName(myPlayerId)} (You)
             </span>
             <span className="my-score">
-              🏆 Score: {gameState.scores?.[playerId] ?? 0}
+              🏆 Score: {scores[myPlayerId] ?? scores[String(myPlayerId)] ?? 0}
             </span>
           </div>
 
           <div className="turn-banner">
             {isMyTurn ? (
               <span className="turn-indicator my-turn">
-                🟢 Your Turn! Select a tile to play.
+                🟢 Your Turn! Click a tile to play.
               </span>
             ) : (
               <span className="turn-indicator wait-turn">
-                ⏳ Waiting for {getPlayerName(gameState.currentPlayerId)}...
+                ⏳ Waiting for {getPlayerName(curPlayerId)}...
               </span>
             )}
           </div>
@@ -472,7 +520,7 @@ function GamePage() {
               disabled={!canDraw || actionLoading}
               title={
                 !canDraw
-                  ? "Cannot draw right now"
+                  ? "Cannot draw (deck empty or not your turn)"
                   : "Draw a tile from the boneyard"
               }
             >
@@ -495,23 +543,24 @@ function GamePage() {
 
         {/* Player's Hand */}
         <div className="player-hand-rack">
-          {gameState.yourHand && gameState.yourHand.length > 0 ? (
-            gameState.yourHand.map((tile, idx) => {
+          {yourHand.length > 0 ? (
+            yourHand.map((tile, idx) => {
+              const tL = Number(tile.left ?? tile.Left ?? 0);
+              const tR = Number(tile.right ?? tile.Right ?? 0);
+
               const isSelected =
                 selectedTile &&
-                (selectedTile.left ?? selectedTile.Left) ===
-                  (tile.left ?? tile.Left) &&
-                (selectedTile.right ?? selectedTile.Right) ===
-                  (tile.right ?? tile.Right);
+                Number(selectedTile.left ?? selectedTile.Left) === tL &&
+                Number(selectedTile.right ?? selectedTile.Right) === tR;
 
-              const sides = calculateValidSides(tile, gameState.playedBoard);
+              const sides = calculateValidSides(tile, playedBoard);
               const isPlayable = isMyTurn && isPlaying && sides.length > 0;
 
               return (
                 <div key={idx} className="hand-tile-wrapper">
                   <DominoTile
-                    left={Number(tile.left ?? tile.Left ?? 0)}
-                    right={Number(tile.right ?? tile.Right ?? 0)}
+                    left={tL}
+                    right={tR}
                     orientation="vertical"
                     size="large"
                     selected={isSelected}
@@ -535,10 +584,9 @@ function GamePage() {
             <h2>{isGameOver ? "🎉 Game Over!" : "🏁 Round Finished!"}</h2>
 
             <div className="winner-highlight">
-              {gameState.roundWinnerId ? (
+              {roundWinnerId ? (
                 <p>
-                  Winner:{" "}
-                  <strong>{getPlayerName(gameState.roundWinnerId)}</strong>
+                  Winner: <strong>{getPlayerName(roundWinnerId)}</strong>
                 </p>
               ) : (
                 <p>Round ended in a tie!</p>
@@ -553,24 +601,22 @@ function GamePage() {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(gameState.scores || {}).map(
-                  ([pIdStr, score]) => {
-                    const pId = Number(pIdStr);
-                    const isWinner =
-                      (isGameOver && gameState.gameWinnerId === pId) ||
-                      (!isGameOver && gameState.roundWinnerId === pId);
-                    return (
-                      <tr key={pId} className={isWinner ? "winner-row" : ""}>
-                        <td>
-                          {getPlayerName(pId)}
-                          {pId === playerId && " (You)"}
-                          {isWinner && " 🏆"}
-                        </td>
-                        <td>{score} pts</td>
-                      </tr>
-                    );
-                  }
-                )}
+                {Object.entries(scores).map(([pIdStr, score]) => {
+                  const pId = Number(pIdStr);
+                  const isWinner =
+                    (isGameOver && Number(gameWinnerId) === pId) ||
+                    (!isGameOver && Number(roundWinnerId) === pId);
+                  return (
+                    <tr key={pId} className={isWinner ? "winner-row" : ""}>
+                      <td>
+                        {getPlayerName(pId)}
+                        {pId === myPlayerId && " (You)"}
+                        {isWinner && " 🏆"}
+                      </td>
+                      <td>{score} pts</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -600,4 +646,3 @@ function GamePage() {
 }
 
 export default GamePage;
-

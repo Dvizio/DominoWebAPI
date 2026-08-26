@@ -90,7 +90,7 @@ public class DominoGameController : ControllerBase
         if (lobby == null || lobby.ActiveGame == null)
             return NotFound("Active game session not found.");
 
-        if (lobby.HostPlayerId != playerId)
+        if (!(lobby.Players.Count >= playerId))
             return BadRequest("Only the host can start the next round.");
 
         var game = lobby.ActiveGame;

@@ -325,9 +325,8 @@ function LobbyPage() {
                                     onChange={handleSettingsChange}
                                     disabled={loading}
                                 >
-                                    <option value={0}>Draw</option>
-                                    <option value={1}>Block</option>
-                                    <option value={2}>All Fives</option>
+                                    <option value={0}>Block</option>
+                                    <option value={1}>Draw</option>
                                 </select>
                             </div>
 
@@ -385,7 +384,6 @@ function LobbyPage() {
                                     disabled={loading}
                                 >
                                     <option value={0}>Highest Double</option>
-                                    <option value={1}>Highest Tile</option>
                                     <option value={2}>Random</option>
                                 </select>
                             </div>
