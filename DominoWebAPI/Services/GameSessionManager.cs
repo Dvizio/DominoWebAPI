@@ -8,6 +8,10 @@ public class GameSessionManager
 {
     private readonly ConcurrentDictionary<string, LobbySession> _lobbies = new();
 
+    private void OnGameOver()
+    {
+        CleanupExpiredSessions(TimeSpan.FromMinutes(10));
+    }
     public LobbySession CreateLobby(string hostName, out int hostPlayerId)
     {
         string gameId = GenerateRoomCode();
@@ -106,8 +110,10 @@ public class GameSessionManager
             session.StartingRule
         );
 
-        game.StartGame();
+        game.GameStateGameOver += OnGameOver;
         session.ActiveGame = game;
+
+        game.StartGame();
 
         return game;
     }
@@ -145,7 +151,7 @@ public class GameSessionManager
 
             bool isGameOver = session.ActiveGame != null && session.ActiveGame.Status == GameState.GameOver;
             bool isIdleExpired = (now - session.LastActivityUtc) > inactivityTimeout;
-            
+
             // Check if any disconnected player has exceeded the timeout (e.g. 1 hour)
             bool hasTimedOutDisconnectedPlayer = session.DisconnectedPlayersUtc.Values.Any(dt => (now - dt) > inactivityTimeout);
 
@@ -168,4 +174,4 @@ public class GameSessionManager
         return new string(Enumerable.Repeat(chars, 6)
             .Select(s => s[random.Next(s.Length)]).ToArray());
     }
-}
+}

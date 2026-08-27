@@ -25,6 +25,7 @@ public class GameLogic
     public StartingPlayerRule FirstStarterRule { get; private set; }
     // public ScoringMethod ScoringMethod { get; }
     public int? NextStarter;
+    public event Action? GameStateGameOver;
 
     public GameLogic(
         List<IPlayer> players,
@@ -238,6 +239,7 @@ public class GameLogic
             if (Scores[winnerId] >= TargetScore)
             {
                 Status = GameState.GameOver;
+                GameStateGameOver?.Invoke();
             }
         }
     }
