@@ -174,6 +174,11 @@ function GamePage() {
           console.log("GameHub connection closed");
         });
 
+        hubConnection.on("PlayerDisconnected", (data) => {
+          console.log("someone disconnected");
+          refreshGameState();  //TODO langsung gamestateover?
+        });
+
         await hubConnection.start();
 
         if (!isMounted) {
@@ -207,10 +212,10 @@ function GamePage() {
     return () => {
       isMounted = false;
       if (connectionRef.current) {
-        connectionRef.current.stop().catch(() => {});
+        connectionRef.current.stop().catch(() => { });
         connectionRef.current = null;
       } else if (hubConnection) {
-        hubConnection.stop().catch(() => {});
+        hubConnection.stop().catch(() => { });
       }
     };
   }, [gameId, playerId, navigate, refreshGameState]);

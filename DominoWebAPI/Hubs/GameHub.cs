@@ -16,6 +16,16 @@ public class GameHub : Hub
         _sessionManager = sessionManager;
     }
 
+    // public async Task PlayerExit(string gameId, int? playerId)
+    // {
+    //     if (string.IsNullOrWhiteSpace(gameId)) return;
+    //     var game = _sessionManager.GetGame(gameId);
+    //     if(game != null)
+    //     {
+    //        await Clients.Group(gameId.ToUpper()).SendAsync("PlayerQuit");
+    //     }
+    // }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         if (_connectionMap.TryRemove(Context.ConnectionId, out var info))
@@ -25,6 +35,7 @@ public class GameHub : Hub
             {
                 lobby.MarkPlayerDisconnected(info.PlayerId);
                 Console.WriteLine($"Player {info.PlayerId} in room {info.GameId} disconnected. Timeout timer started 10 minutes).");
+                await Clients.Group(info.GameId).SendAsync("PlayerDisconnected", info.PlayerId);
             }
         }
 
