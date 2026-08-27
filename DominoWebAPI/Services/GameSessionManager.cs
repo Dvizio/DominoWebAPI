@@ -8,9 +8,11 @@ public class GameSessionManager
 {
     private readonly ConcurrentDictionary<string, LobbySession> _lobbies = new();
 
-    private void OnGameOver()
+    private async void OnGameOver()
     {
+        await Task.Delay(TimeSpan.FromSeconds(5));
         CleanupExpiredSessions(TimeSpan.FromMinutes(10));
+        Console.WriteLine("Cleanup Called");
     }
     public LobbySession CreateLobby(string hostName, out int hostPlayerId)
     {
@@ -160,6 +162,7 @@ public class GameSessionManager
                 if (_lobbies.TryRemove(gameId, out _))
                 {
                     removedCount++;
+                    Console.WriteLine($"Removed game id:  {gameId}");
                 }
             }
         }
