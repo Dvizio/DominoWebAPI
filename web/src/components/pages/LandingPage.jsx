@@ -75,12 +75,9 @@ function LandingPage() {
                         <div className="mini-domino">
                             <div className="mini-domino-half">
                                 <span className="mini-dot" />
-                                <span className="mini-dot" />
-                                <span className="mini-dot" />
                             </div>
                             <div className="mini-divider" />
                             <div className="mini-domino-half">
-                                <span className="mini-dot" />
                                 <span className="mini-dot" />
                                 <span className="mini-dot" />
                             </div>
@@ -94,13 +91,11 @@ function LandingPage() {
                             <div className="mini-domino-half">
                                 <span className="mini-dot" />
                                 <span className="mini-dot" />
-                                <span className="mini-dot" />
-                                <span className="mini-dot" />
                             </div>
                         </div>
                     </div>
-                    <span className="brand-badge">Premium Tabletop</span>
-                    <h1 className="brand-title">Domino <span>Lounge</span></h1>
+                    {/* <span className="brand-badge">Premium Tabletop</span> */}
+                    <h1 className="brand-title">Domino Lounge</h1>
                     <p className="brand-subtitle">Real-time multiplayer domino gaming</p>
                 </div>
 
@@ -114,7 +109,7 @@ function LandingPage() {
                             setError("");
                         }}
                     >
-                        ✨ Create Lobby
+                        Create Lobby
                     </button>
                     <button
                         type="button"
@@ -124,7 +119,7 @@ function LandingPage() {
                             setError("");
                         }}
                     >
-                        🚪 Join Room
+                        Join Room
                     </button>
                 </div>
 
@@ -135,7 +130,7 @@ function LandingPage() {
                             Player Name
                         </label>
                         <div className="input-wrapper">
-                            <span className="input-icon">👤</span>
+                            <span className="input-icon"></span>
                             <input
                                 id="playerName"
                                 className="form-input"
@@ -155,7 +150,7 @@ function LandingPage() {
                                 Room Code / Game ID
                             </label>
                             <div className="input-wrapper">
-                                <span className="input-icon">🔑</span>
+                                <span className="input-icon"></span>
                                 <input
                                     id="gameId"
                                     className="form-input"
@@ -172,9 +167,9 @@ function LandingPage() {
                         {loading ? (
                             "Connecting..."
                         ) : mode === "create" ? (
-                            "Create New Table 🎲"
+                            "Create New Table "
                         ) : (
-                            "Join Table 🀄"
+                            "Join Table "
                         )}
                     </button>
                 </form>

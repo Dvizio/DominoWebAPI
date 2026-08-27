@@ -2,10 +2,15 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(circle at 50% 20%, #14241c 0%, #0e1117 60%, #080a0e 100%);
+  background: rgba(255, 255, 247, 0.788);
   color: #f3f4f6;
   position: relative;
   overflow-x: hidden;
+}
+
+a {
+    color: black;
+    text-decoration: none;
 }
 
 /* Header */
@@ -14,7 +19,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 32px;
-  background: #141720;
+  background: rgba(240, 240, 247, 0.788);
   border-bottom: 1px solid #282d3c;
   flex-wrap: wrap;
   gap: 16px;
@@ -29,7 +34,7 @@
 .lobby-title {
   font-size: 22px;
   font-weight: 800;
-  color: #f3f4f6;
+  color: #202020;
   margin: 0;
   display: flex;
   align-items: center;
@@ -37,9 +42,9 @@
 }
 
 .lobby-title-badge {
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  color: #fbbf24;
+  background: rgba(77, 77, 77, 0.12);
+  border: 1px solid rgba(30, 30, 30, 0.3);
+  color: #000000;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -58,27 +63,27 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #1e2330;
+  background: rgba(240, 240, 247, 0.788);
   border: 1px solid #333a4c;
   padding: 6px 14px;
-  border-radius: 8px;
+  border-radius: 1px;
   font-size: 14px;
   color: #9ca3af;
 }
 
 .room-code-badge strong {
-  color: #fbbf24;
+  color: #202020;
   font-size: 16px;
   letter-spacing: 1.5px;
-  font-family: var(--mono);
+  font-family: monospace;
 }
 
 .copy-code-btn {
-  background: #2b3244;
+  background: rgba(230, 230, 237, 0.788);
   border: 1px solid #3d465e;
-  color: #e5e7eb;
+  color: #202020;
   padding: 5px 12px;
-  border-radius: 6px;
+  border-radius: 1px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -89,23 +94,23 @@
 }
 
 .copy-code-btn:hover {
-  background: #37415a;
-  border-color: #fbbf24;
-  color: #fbbf24;
+  background: #808080;
+  border-color: #202020;
+  color: #dedede;
 }
 
 .copy-code-btn.copied {
-  background: #14532d;
-  border-color: #22c55e;
-  color: #86efac;
+  background: #808080;
+  border-color: #202020;
+  color: #00f65a;
 }
 
 .leave-lobby-btn {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.027);
   border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
+  color: #ff4040;
   padding: 7px 16px;
-  border-radius: 8px;
+  border-radius: 1px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -140,11 +145,11 @@
 
 /* Common Section Card */
 .lobby-card {
-  background: rgba(22, 25, 34, 0.85);
+  background: rgba(255, 255, 247, 0.788);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid #282d3c;
-  border-radius: 16px;
+  border-radius: 1px;
   padding: 24px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
   display: flex;
@@ -163,7 +168,7 @@
 .card-title {
   font-size: 18px;
   font-weight: 700;
-  color: #f3f4f6;
+  color: #202020;
   margin: 0;
   display: flex;
   align-items: center;
@@ -171,13 +176,13 @@
 }
 
 .player-count-tag {
-  background: #1e2330;
-  color: #fbbf24;
+  background: rgba(255, 255, 257, 1.000);
+  color: #202020;
   font-size: 12px;
   font-weight: 700;
   padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 1px;
+  border: 2px solid rgb(5, 5, 5);
 }
 
 /* Players List */
@@ -195,16 +200,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #12141c;
+  background: rgba(255, 255, 247, 0.788);
   border: 1px solid #252a38;
-  border-radius: 10px;
+  border-radius: 1px;
   padding: 12px 16px;
   transition: all 0.2s ease;
 }
 
 .player-item-card.is-you {
   border-color: rgba(34, 197, 94, 0.4);
-  background: rgba(34, 197, 94, 0.05);
+  background: rgba(200, 200, 200, 1.000);
 }
 
 .player-item-left {
@@ -236,7 +241,7 @@
 .player-name-text {
   font-size: 15px;
   font-weight: 600;
-  color: #f3f4f6;
+  color: #202020;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -247,7 +252,7 @@
   background: #22c55e;
   color: #052e16;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: 1px;
   font-weight: 700;
 }
 
@@ -259,11 +264,11 @@
 
 .host-badge-pill {
   font-size: 12px;
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  color: #fbbf24;
+  background: rgba(90, 90, 90, 0.92);
+  border: 1px solid rgba(90, 90, 90, 0.93);
+  color: #ffffff;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: 1px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -273,11 +278,11 @@
 .waiting-players-box {
   margin-top: 16px;
   padding: 14px;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(240, 240, 240, 0.25);
   border: 1px dashed #374151;
-  border-radius: 10px;
+  border-radius: 1px;
   text-align: center;
-  color: #9ca3af;
+  color: #808080;
   font-size: 13.5px;
 }
 
@@ -304,17 +309,17 @@
 .settings-label {
   font-size: 12.5px;
   font-weight: 600;
-  color: #9ca3af;
+  color: #202020;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .settings-select,
 .settings-input {
-  background: #10131a;
+  background: #d5d5d5;
   border: 1px solid #2e3344;
-  border-radius: 8px;
-  color: #f3f4f6;
+  border-radius: 1px;
+  color: #101010;
   padding: 10px 12px;
   font-size: 14px;
   outline: none;
@@ -325,8 +330,8 @@
 
 .settings-select:focus,
 .settings-input:focus {
-  border-color: #fbbf24;
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.15);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(43, 36, 251, 0.15);
 }
 
 .settings-select:disabled,
@@ -340,7 +345,7 @@
   color: #fff;
   border: none;
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: 1px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -369,27 +374,27 @@
   display: flex;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #12141c;
+  background: #e5e5e5;
   border: 1px solid #232734;
-  border-radius: 8px;
+  border-radius: 1px;
   font-size: 14px;
 }
 
 .readonly-label {
-  color: #9ca3af;
+  color: #202020;
 }
 
 .readonly-val {
-  color: #f3f4f6;
+  color: #202020;
   font-weight: 600;
 }
 
 /* Lobby Actions / Start Game Bar */
 .lobby-actions-card {
   grid-column: 1 / -1;
-  background: rgba(18, 20, 28, 0.95);
+  background: rgba(240, 240, 240, 0.95);
   border: 1px solid #2e3344;
-  border-radius: 14px;
+  border-radius: 1px;
   padding: 20px 24px;
   display: flex;
   justify-content: space-between;
@@ -408,27 +413,27 @@
 .actions-status-title {
   font-size: 16px;
   font-weight: 700;
-  color: #f3f4f6;
+  color: #202020;
   margin: 0;
 }
 
 .actions-status-subtitle {
   font-size: 13.5px;
-  color: #9ca3af;
+  color: #202020;
   margin: 0;
 }
 
 .start-game-btn {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: #052e16;
-  border: none;
+  background: #1d4ed8;
+  color: #e5e5e5;
+  border: 1px solid rgba(0, 0, 0, 0.4);
   padding: 14px 32px;
-  border-radius: 10px;
+  border-radius: 1px;
   font-size: 16px;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -454,7 +459,7 @@
   border: 1px solid rgba(239, 68, 68, 0.35);
   color: #fca5a5;
   padding: 12px 18px;
-  border-radius: 8px;
+  border-radius: 1px;
   font-size: 14px;
   text-align: center;
 }

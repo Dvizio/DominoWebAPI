@@ -351,8 +351,9 @@ function LobbyPage() {
             {/* Header Bar */}
             <header className="lobby-header-bar">
                 <div className="lobby-header-left">
-                    <h1 className="lobby-title">
+                    <h1 className="lobby-title" ><a href ="https://lets-see-frrl.work">
                         Domino Table
+                        </a>
                     </h1>
                     <span className="lobby-title-badge">Multiplayer Lounge</span>
                 </div>
@@ -368,7 +369,7 @@ function LobbyPage() {
                         className={`copy-code-btn ${copied ? "copied" : ""}`}
                         title="Copy game ID to clipboard"
                     >
-                        {copied ? "✓ Copied!" : "📋 Copy Code"}
+                        {copied ? "✓ Copied!" : "Copy Code"}
                     </button>
 
                     <button onClick={handleLeaveLobby} className="leave-lobby-btn">
@@ -383,7 +384,7 @@ function LobbyPage() {
                 <div className="lobby-card">
                     <div className="card-header">
                         <h2 className="card-title">
-                            👥 Seated Players
+                            Seated Players
                         </h2>
                         <span className="player-count-tag">
                             {lobby.players.length} / 4 Players
@@ -408,7 +409,7 @@ function LobbyPage() {
 
                                     <div className="player-item-right">
                                         {player.isHost && (
-                                            <span className="host-badge-pill">👑 Host</span>
+                                            <span className="host-badge-pill">Host</span>
                                         )}
                                     </div>
                                 </li>
@@ -418,7 +419,7 @@ function LobbyPage() {
 
                     {lobby.players.length < 2 && (
                         <div className="waiting-players-box">
-                            <span>⏳ Waiting for players to join (Need at least 2 to start)</span>
+                            <span>Waiting for players to join (Need at least 2 to start)</span>
                         </div>
                     )}
                 </div>
@@ -427,7 +428,7 @@ function LobbyPage() {
                 <div className="lobby-card">
                     <div className="card-header">
                         <h2 className="card-title">
-                            ⚙️ Table Rules & Settings
+                            Table Rules & Settings
                         </h2>
                         {isHost && (
                             <span className="player-count-tag" style={{ color: "#86efac" }}>
@@ -523,7 +524,7 @@ function LobbyPage() {
                                 disabled={loading}
                                 className="update-settings-btn"
                             >
-                                {loading ? "Updating..." : "💾 Save Table Settings"}
+                                {loading ? "Updating..." : "Save Table Settings"}
                             </button>
                         </form>
                     ) : (
