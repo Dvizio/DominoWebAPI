@@ -44,7 +44,7 @@ class ErrorBoundary extends React.Component {
             textAlign: "center",
             boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
           }}>
-            <h2 style={{ color: "#ef4444", margin: "0 0 12px" }}>⚠️ Game Encountered an Error</h2>
+            <h2 style={{ color: "#ef4444", margin: "0 0 12px" }}>Game Encountered an Error!</h2>
             <p style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "16px" }}>
               {this.state.error?.message || "An unexpected error occurred during rendering."}
             </p>

@@ -95,8 +95,8 @@ function LandingPage() {
                         </div>
                     </div>
                     {/* <span className="brand-badge">Premium Tabletop</span> */}
-                    <h1 className="brand-title">Domino Lounge</h1>
-                    <p className="brand-subtitle">Real-time multiplayer domino gaming</p>
+                    <h1 className="brand-title">Domino</h1>
+                    <p className="brand-subtitle">Multiplayer Domino</p>
                 </div>
 
                 {/* Mode Switcher Tabs */}
@@ -176,7 +176,7 @@ function LandingPage() {
 
                 {error && (
                     <div className="landing-error">
-                        <span>⚠️</span> {error}
+                        <span></span> {error}
                     </div>
                 )}
 

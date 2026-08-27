@@ -24,7 +24,7 @@ public class GameHub : Hub
             if (lobby != null)
             {
                 lobby.MarkPlayerDisconnected(info.PlayerId);
-                Console.WriteLine($"Player {info.PlayerId} in room {info.GameId} disconnected. Timeout timer started (1 hour).");
+                Console.WriteLine($"Player {info.PlayerId} in room {info.GameId} disconnected. Timeout timer started 10 minutes).");
             }
         }
 
@@ -101,6 +101,7 @@ public class GameHub : Hub
             if (session != null)
             {
                 await Clients.Group(settings.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(session));
+                session.Touch();
             }
         }
     }

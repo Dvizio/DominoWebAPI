@@ -342,7 +342,7 @@ function LobbyPage() {
         );
     }
 
-    const modeName = settings.mode === 0 ? "Block Dominoes" : "Draw Dominoes";
+    const modeName = settings.mode === 0 ? "Block" : "Draw";
     const deckName = settings.deckSize === 6 ? "Double 6 (28 tiles)" : settings.deckSize === 9 ? "Double 9 (55 tiles)" : "Double 12 (91 tiles)";
     const ruleName = settings.startingRule === 0 ? "Highest Double" : "Random Selection";
 
@@ -556,7 +556,7 @@ function LobbyPage() {
                 {/* Error Banner */}
                 {error && (
                     <div className="lobby-error-banner">
-                        ⚠️ {error}
+                        {error}
                     </div>
                 )}
 

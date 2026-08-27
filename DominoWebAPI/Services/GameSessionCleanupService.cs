@@ -8,7 +8,7 @@ public class GameSessionCleanupService : BackgroundService
     private readonly GameSessionManager _sessionManager;
     private readonly ILogger<GameSessionCleanupService> _logger;
     private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(2);
-    private readonly TimeSpan _inactivityTimeout = TimeSpan.FromHours(1);
+    private readonly TimeSpan _inactivityTimeout = TimeSpan.FromMinutes(10);
 
     public GameSessionCleanupService(
         GameSessionManager sessionManager,
@@ -20,7 +20,7 @@ public class GameSessionCleanupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("GameSessionCleanupService started. Monitoring for sessions idle/disconnected > 1 hour.");
+        _logger.LogInformation("GameSessionCleanupService started. Monitoring for sessions idle/disconnected > 10 minutes.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
