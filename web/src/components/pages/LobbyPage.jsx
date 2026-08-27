@@ -431,7 +431,7 @@ function LobbyPage() {
                             Table Rules & Settings
                         </h2>
                         {isHost && (
-                            <span className="player-count-tag" style={{ color: "#86efac" }}>
+                            <span className="player-count-tag" style={{ color: "#202020" }}>
                                 Host Controls
                             </span>
                         )}
@@ -583,7 +583,7 @@ function LobbyPage() {
                             disabled={isStarting || lobby.players.length < 2}
                             className="start-game-btn"
                         >
-                            {isStarting ? "Launching..." : "🚀 Start Game Now"}
+                            {isStarting ? "Launching..." : "Start Game Now"}
                         </button>
                     )}
                 </div>
