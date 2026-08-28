@@ -178,3 +178,7 @@ public class GameSessionManager
             .Select(s => s[random.Next(s.Length)]).ToArray());
     }
 }
+
+
+//service result pattern.
+// jadiin semua jadi different file
