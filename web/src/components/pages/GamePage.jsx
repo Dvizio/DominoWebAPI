@@ -207,7 +207,6 @@ function GamePage() {
         hubConnection.on("LobbyUpdated", (msg) => {
           console.log("Lobby updated:", msg);
 
-          // msg is the LobbyStateDto. Extract current player IDs safely
           const currentPlayers = msg?.players ?? msg?.Players ?? [];
           const currentPlayerIds = currentPlayers.map((p) =>
             Number(p?.playerId ?? p?.PlayerId),
@@ -222,7 +221,6 @@ function GamePage() {
 
           setDisconnectedPlayerIds(Array.from(disconnectedPlayersRef.current));
 
-          // If EVERYONE has reconnected
           if (disconnectedPlayersRef.current.size === 0) {
             if (disconnectTimerRef.current) {
               clearTimeout(disconnectTimerRef.current);
@@ -231,7 +229,6 @@ function GamePage() {
             setShowWaitScreen(false);
           }
 
-          // Optionally update the local lobby players state so names render correctly
           setLobbyPlayers(currentPlayers);
           refreshGameState();
         });
@@ -244,7 +241,7 @@ function GamePage() {
         }
 
         connectionRef.current = hubConnection;
-        console.log("Connected to SignalR GameHub on GamePage");
+        console.log("Connected to SignalR GameHub");
 
         // Join the room group and pass playerId to register reconnection
         try {
@@ -456,7 +453,6 @@ function GamePage() {
     }
 
     const currentStatus = gameState?.status ?? gameState?.Status;
-    // If game is over, clean up the lobby
     if (currentStatus === "GameOver") {
       try {
         await deleteLobby(gameId);
@@ -477,7 +473,6 @@ function GamePage() {
     );
   }
 
-  // Normalize normalized properties from gameState
   const status = gameState.status ?? gameState.Status ?? "";
   const curPlayerId = Number(
     gameState.currentPlayerId ?? gameState.CurrentPlayerId,
@@ -817,7 +812,7 @@ function GamePage() {
             <ul style={{ listStyleType: "none", padding: 0, margin: "15px 0" }}>
               {disconnectedPlayerIds.map((id) => (
                 <li key={id} style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
-                  ⏳ {getPlayerName(id)}
+                  -{getPlayerName(id)}
                 </li>
               ))}
             </ul>

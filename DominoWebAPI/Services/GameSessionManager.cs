@@ -3,6 +3,7 @@ namespace DominoWebAPI.Services;
 using System.Collections.Concurrent;
 using DominoWebAPI.Models;
 using DominoWebAPI.DTOs;
+using DominoWebAPI.Common;
 
 public class GameSessionManager
 {
@@ -10,12 +11,19 @@ public class GameSessionManager
 
     private async void OnGameOver()
     {
-        await Task.Delay(TimeSpan.FromSeconds(5));
+        await Task.Delay(TimeSpan.FromSeconds(10));
         CleanupExpiredSessions(TimeSpan.FromMinutes(10));
-        Console.WriteLine("Cleanup Called");
+        // Console.WriteLine("Cleanup Called");
     }
-    public LobbySession CreateLobby(string hostName, out int hostPlayerId)
+
+    public ServiceResult<LobbySession> CreateLobby(string hostName, out int hostPlayerId)
     {
+        if (string.IsNullOrWhiteSpace(hostName))
+        {
+            hostPlayerId = 0;
+            return ServiceResult<LobbySession>.BadRequest("Host player name is required.");
+        }
+
         string gameId = GenerateRoomCode();
         hostPlayerId = 1;
 
@@ -34,21 +42,27 @@ public class GameSessionManager
         };
 
         _lobbies[gameId] = session;
-        return session;
+        return ServiceResult<LobbySession>.Success(session);
     }
 
-    public (LobbySession? session, int? newPlayerId, string? errorMessage) JoinLobby(string gameId, string playerName)
+    public ServiceResult<(LobbySession Session, int NewPlayerId)> JoinLobby(string gameId, string playerName)
     {
+        if (string.IsNullOrWhiteSpace(gameId))
+            return ServiceResult<(LobbySession Session, int NewPlayerId)>.BadRequest("Game ID is required.");
+
+        if (string.IsNullOrWhiteSpace(playerName))
+            return ServiceResult<(LobbySession Session, int NewPlayerId)>.BadRequest("Player name is required.");
+
         if (!_lobbies.TryGetValue(gameId.ToUpper(), out var session))
-            return (null, null, "Game room not found.");
+            return ServiceResult<(LobbySession Session, int NewPlayerId)>.NotFound("Game room not found.");
 
         session.Touch();
 
         if (session.ActiveGame != null)
-            return (null, null, "Game has already started.");
+            return ServiceResult<(LobbySession Session, int NewPlayerId)>.BadRequest("Game has already started.");
 
         if (session.Players.Count >= 4)
-            return (null, null, "Lobby is full.");
+            return ServiceResult<(LobbySession Session, int NewPlayerId)>.BadRequest("Lobby is full.");
 
         int newPlayerId = session.Players.Count + 1;
         var newPlayer = new LobbyPlayer
@@ -59,23 +73,27 @@ public class GameSessionManager
         };
 
         session.Players.Add(newPlayer);
-        return (session, newPlayerId, null);
+        return ServiceResult<(LobbySession Session, int NewPlayerId)>.Success((session, newPlayerId));
     }
 
     public bool IsHost(string gameId, int playerId)
     {
-        var lobby = GetLobby(gameId);
-        return lobby != null && lobby.HostPlayerId == playerId;
+        var lobbyResult = GetLobby(gameId);
+        return lobbyResult.IsSuccess && lobbyResult.Data!.HostPlayerId == playerId;
     }
 
-    public bool UpdateSettings(UpdateSettingsRequest request)
+    public ServiceResult<LobbySession> UpdateSettings(UpdateSettingsRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.GameId))
+            return ServiceResult<LobbySession>.BadRequest("Game ID is required.");
+
         if (!_lobbies.TryGetValue(request.GameId.ToUpper(), out var session))
-            return false;
+            return ServiceResult<LobbySession>.NotFound("Could not update settings. Room might not exist.");
 
         session.Touch();
 
-        if (session.ActiveGame != null) return false;
+        if (session.ActiveGame != null)
+            return ServiceResult<LobbySession>.BadRequest("Could not update settings. Game is already active.");
 
         session.Mode = request.Mode;
         session.DeckSize = request.DeckSize;
@@ -83,21 +101,24 @@ public class GameSessionManager
         session.HandSize = request.HandSize;
         session.StartingRule = request.StartingRule;
 
-        return true;
+        return ServiceResult<LobbySession>.Success(session);
     }
 
-    public GameLogic? StartGame(string gameId, int requestingPlayerId)
+    public ServiceResult<GameLogic> StartGame(string gameId, int requestingPlayerId)
     {
+        if (string.IsNullOrWhiteSpace(gameId))
+            return ServiceResult<GameLogic>.BadRequest("Game ID is required.");
+
         if (!_lobbies.TryGetValue(gameId.ToUpper(), out var session))
-            return null;
+            return ServiceResult<GameLogic>.NotFound("Game room not found.");
 
         session.Touch();
 
         if (session.HostPlayerId != requestingPlayerId)
-            return null;
+            return ServiceResult<GameLogic>.BadRequest("Failed to start game. Ensure you are the host.");
 
         if (session.Players.Count < 2)
-            return null;
+            return ServiceResult<GameLogic>.BadRequest("Failed to start game. At least 2 players are required.");
 
         List<IPlayer> gamePlayers = session.Players
             .Select(p => new Player(p.PlayerId, p.PlayerName) as IPlayer)
@@ -117,28 +138,46 @@ public class GameSessionManager
 
         game.StartGame();
 
-        return game;
+        return ServiceResult<GameLogic>.Success(game);
     }
 
-    public LobbySession? GetLobby(string gameId)
+    public ServiceResult<LobbySession> GetLobby(string gameId)
     {
+        if (string.IsNullOrWhiteSpace(gameId))
+            return ServiceResult<LobbySession>.BadRequest("Game ID is required.");
+
         if (_lobbies.TryGetValue(gameId.ToUpper(), out var session))
         {
             session.Touch();
-            return session;
+            return ServiceResult<LobbySession>.Success(session);
         }
-        return null;
+
+        return ServiceResult<LobbySession>.NotFound("Game session not found.");
     }
 
-    public GameLogic? GetGame(string gameId)
+    public ServiceResult<GameLogic> GetGame(string gameId)
     {
-        var lobby = GetLobby(gameId);
-        return lobby?.ActiveGame;
+        var lobbyResult = GetLobby(gameId);
+        if (!lobbyResult.IsSuccess)
+            return ServiceResult<GameLogic>.Failure(lobbyResult.ErrorMessage!, lobbyResult.ErrorType);
+
+        if (lobbyResult.Data!.ActiveGame == null)
+            return ServiceResult<GameLogic>.NotFound("Active game session not found.");
+
+        return ServiceResult<GameLogic>.Success(lobbyResult.Data.ActiveGame);
     }
 
-    public bool RemoveLobby(string gameId)
+    public ServiceResult RemoveLobby(string gameId)
     {
-        return _lobbies.TryRemove(gameId.ToUpper(), out _);
+        if (string.IsNullOrWhiteSpace(gameId))
+            return ServiceResult.BadRequest("Game ID is required.");
+
+        if (_lobbies.TryRemove(gameId.ToUpper(), out _))
+        {
+            return ServiceResult.Success();
+        }
+
+        return ServiceResult.NotFound("Game session not found.");
     }
 
     public int CleanupExpiredSessions(TimeSpan inactivityTimeout)
@@ -178,7 +217,3 @@ public class GameSessionManager
             .Select(s => s[random.Next(s.Length)]).ToArray());
     }
 }
-
-
-//service result pattern.
-// jadiin semua jadi different file

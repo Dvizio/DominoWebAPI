@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using DominoWebAPI.Services;
 using DominoWebAPI.DTOs;
 using DominoWebAPI.Models;
+using DominoWebAPI.Common;
 
 public class GameHub : Hub
 {
@@ -16,35 +17,41 @@ public class GameHub : Hub
         _sessionManager = sessionManager;
     }
 
-    // public async Task PlayerExit(string gameId, int? playerId)
-    // {
-    //     if (string.IsNullOrWhiteSpace(gameId)) return;
-    //     var game = _sessionManager.GetGame(gameId);
-    //     if(game != null)
-    //     {
-    //        await Clients.Group(gameId.ToUpper()).SendAsync("PlayerQuit");
-    //     }
-    // }
-
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         if (_connectionMap.TryRemove(Context.ConnectionId, out var info))
         {
-            var lobby = _sessionManager.GetLobby(info.GameId);
-            if (lobby != null)
+            var lobbyResult = _sessionManager.GetLobby(info.GameId);
+            if (lobbyResult.IsSuccess)
             {
+                var lobby = lobbyResult.Data!;
+                if (lobby.ActiveGame == null)
+                {
+                    lobby.Players.RemoveAt(info.PlayerId - 1);
+                    await Clients.Group(lobby.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(lobby));
+                }
                 lobby.MarkPlayerDisconnected(info.PlayerId);
-                Console.WriteLine($"Player {info.PlayerId} in room {info.GameId} disconnected. Timeout timer started 10 minutes).");
+                Console.WriteLine($"Player {info.PlayerId} in room {info.GameId} disconnected. Timeout timer started (10 minutes).");
                 await Clients.Group(info.GameId).SendAsync("PlayerDisconnected", info.PlayerId);
+                // await Clients.Group(lobby.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(lobby));
+
+
             }
         }
 
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task<object> CreateLobby(string hostName)
+    public async Task<object?> CreateLobby(string hostName)
     {
-        var session = _sessionManager.CreateLobby(hostName, out int hostPlayerId);
+        var result = _sessionManager.CreateLobby(hostName, out int hostPlayerId);
+        if (!result.IsSuccess)
+        {
+            await Clients.Caller.SendAsync("Error", result.ErrorMessage ?? "Failed to create room.");
+            return null;
+        }
+
+        var session = result.Data!;
         await Groups.AddToGroupAsync(Context.ConnectionId, session.GameId.ToUpper());
         _connectionMap[Context.ConnectionId] = (session.GameId.ToUpper(), hostPlayerId);
         Console.WriteLine($"Lobby created by {hostName} in room {session.GameId}");
@@ -54,24 +61,23 @@ public class GameHub : Hub
 
     public async Task JoinLobby(string gameId, string playerName)
     {
-        var (session, newPlayerId, errorMessage) = _sessionManager.JoinLobby(gameId, playerName);
-
-        if (session == null || !newPlayerId.HasValue)
+        var result = _sessionManager.JoinLobby(gameId, playerName);
+        if (!result.IsSuccess)
         {
-            await Clients.Caller.SendAsync("Error", errorMessage ?? "Failed to join room.");
+            await Clients.Caller.SendAsync("Error", result.ErrorMessage ?? "Failed to join room.");
             return;
         }
 
+        var (session, newPlayerId) = result.Data;
         await Groups.AddToGroupAsync(Context.ConnectionId, session.GameId.ToUpper());
-        _connectionMap[Context.ConnectionId] = (session.GameId.ToUpper(), newPlayerId.Value);
-        session.MarkPlayerReconnected(newPlayerId.Value);
+        _connectionMap[Context.ConnectionId] = (session.GameId.ToUpper(), newPlayerId);
+        session.MarkPlayerReconnected(newPlayerId);
 
         Console.WriteLine($"Player {playerName} joined lobby {gameId}");
 
-        await Clients.Caller.SendAsync("JoinedSuccess", newPlayerId.Value);
+        await Clients.Caller.SendAsync("JoinedSuccess", newPlayerId);
         await Clients.Group(session.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(session));
     }
-
 
     public async Task JoinGame(string gameId, int? playerId = null)
     {
@@ -80,14 +86,14 @@ public class GameHub : Hub
         string upperGameId = gameId.ToUpper();
         await Groups.AddToGroupAsync(Context.ConnectionId, upperGameId);
 
-        var lobby = _sessionManager.GetLobby(upperGameId);
+        var lobbyResult = _sessionManager.GetLobby(upperGameId);
 
         if (playerId.HasValue)
         {
             _connectionMap[Context.ConnectionId] = (upperGameId, playerId.Value);
-            if (lobby != null)
+            if (lobbyResult.IsSuccess)
             {
-                lobby.MarkPlayerReconnected(playerId.Value);
+                lobbyResult.Data!.MarkPlayerReconnected(playerId.Value);
                 Console.WriteLine($"Player {playerId.Value} joined/reconnected to group {upperGameId}.");
             }
         }
@@ -97,29 +103,27 @@ public class GameHub : Hub
         }
 
         // Broadcast updated lobby so the host sees the latest player list immediately
-        if (lobby != null)
+        if (lobbyResult.IsSuccess)
         {
-            await Clients.Group(upperGameId).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(lobby));
+            await Clients.Group(upperGameId).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(lobbyResult.Data!));
         }
     }
 
     public async Task UpdateSettings(UpdateSettingsRequest settings)
     {
-        bool success = _sessionManager.UpdateSettings(settings);
-        if (success)
+        var result = _sessionManager.UpdateSettings(settings);
+        if (result.IsSuccess)
         {
-            var session = _sessionManager.GetLobby(settings.GameId);
-            if (session != null)
-            {
-                await Clients.Group(settings.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(session));
-                session.Touch();
-            }
+            var session = result.Data!;
+            await Clients.Group(settings.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(session));
+            session.Touch();
         }
     }
 
     public async Task StartGame(string gameId, int playerId)
     {
-        var game = _sessionManager.GetGame(gameId) ?? _sessionManager.StartGame(gameId, playerId);
+        var gameResult = _sessionManager.GetGame(gameId);
+        var game = gameResult.IsSuccess ? gameResult.Data : _sessionManager.StartGame(gameId, playerId).Data;
         Console.WriteLine($"Game with {gameId} started by player {playerId}");
         if (game != null)
         {
@@ -130,9 +134,10 @@ public class GameHub : Hub
 
     public async Task PlayTile(PlayTileRequest request)
     {
-        var lobby = _sessionManager.GetLobby(request.GameId);
-        if (lobby == null || lobby.ActiveGame == null) return;
+        var lobbyResult = _sessionManager.GetLobby(request.GameId);
+        if (!lobbyResult.IsSuccess || lobbyResult.Data!.ActiveGame == null) return;
 
+        var lobby = lobbyResult.Data!;
         var game = lobby.ActiveGame;
         var player = game.Players.FirstOrDefault(p => p.PlayerId == request.PlayerId);
         if (player == null) return;

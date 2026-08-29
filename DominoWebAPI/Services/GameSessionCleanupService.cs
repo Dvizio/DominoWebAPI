@@ -8,7 +8,7 @@ public class GameSessionCleanupService : BackgroundService
     private readonly GameSessionManager _sessionManager;
     private readonly ILogger<GameSessionCleanupService> _logger;
     private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(2);
-    private readonly TimeSpan _inactivityTimeout = TimeSpan.FromMinutes(10);
+    private readonly TimeSpan _inactivityTimeout = TimeSpan.FromMinutes(10); //Todo: change this for debug biar ga langsung di delete
 
     public GameSessionCleanupService(
         GameSessionManager sessionManager,
