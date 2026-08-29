@@ -8,15 +8,15 @@ public class GameLogic
 {
     private Random _random = new Random();
     public List<IPlayer> Players { get; private set; }
-    public IPlayer CurrentPlayer { get; private set; }
+    public IPlayer CurrentPlayer { get; private set; } = null!;
     public GameMode Mode { get; }
     public GameState Status { get; private set; }
     public int TargetScore { get; }
     public IPlayer? RoundWinner { get; private set; }
     public Dictionary<int, List<DominoTile>> PlayerHands { get; private set; } = new();
     public Dictionary<int, int> Scores { get; private set; } = new();
-    public IDominoBoard Board { get; private set; }
-    public IDominoDeck Deck { get; private set; }
+    public IDominoBoard Board { get; private set; } = null!;
+    public IDominoDeck Deck { get; private set; } = null!;
     public int CurrentPlayerIndex { get; private set; }
     public int ConsecutivePasses { get; private set; }
     public int RoundNumber { get; private set; }
