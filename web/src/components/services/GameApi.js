@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5170/api/games";
+  import.meta.env.VITE_API_URL || "http://localhost:5170/api/games";
 export const HUB_URL =
   import.meta.env.VITE_HUB_URL || "http://localhost:5170/gameHub";
 
