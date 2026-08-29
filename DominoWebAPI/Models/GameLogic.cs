@@ -33,7 +33,7 @@ public class GameLogic
         int handSize,
         int targetScore,
         int deckSize,
-        StartingPlayerRule rule) //first init will be this
+        StartingPlayerRule rule)
     {
         Mode = gameMode;
         Players = players;
@@ -139,7 +139,7 @@ public class GameLogic
         {
             answer.Add(PlacementSide.Right);
         }
-        return answer; //Todo
+        return answer;
     }
 
     public bool PlayTile(IPlayer player, DominoTile tile, PlacementSide side) //ok
@@ -354,7 +354,7 @@ public class GameLogic
         }
         return WinnerId;
     }
-    public int CalculateSumMinusWinner(int player1, int player2) // sama kyk calculatepiptotal, exclusive for draw, might be not needed
+    public int CalculateSumMinusWinner(int player1, int player2)
     {
         int a = CalculatePipTotal(player1);
         int b = CalculatePipTotal(player2);

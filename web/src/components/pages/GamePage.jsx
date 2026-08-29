@@ -190,7 +190,6 @@ function GamePage() {
           const disconnectedId = Number(msg);
           console.log(`Player ${getPlayerName(disconnectedId)} disconnected`);
 
-          // Add to our tracker
           disconnectedPlayersRef.current.add(disconnectedId);
           setDisconnectedPlayerIds(Array.from(disconnectedPlayersRef.current));
 
@@ -516,8 +515,17 @@ function GamePage() {
   return (
     <div className="game-page-container">
       {/* Top Header Bar */}
+      <header className="lobby-header-bar">
+        <div className="lobby-header-left">
+          <h1 className="lobby-title">
+            <a href="https://lets-see-frrl.work">Domino</a>
+          </h1>
+          <span className="lobby-title-badge">Multiplayer</span>
+        </div>
+      </header>
       <header className="game-header">
         <div className="header-left">
+          <a href="https://lets-see-frrl.work">Frrl</a>
           <span className="room-code-tag">
             Room: <strong>{gameId}</strong>
           </span>

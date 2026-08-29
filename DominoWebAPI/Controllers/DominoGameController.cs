@@ -162,7 +162,6 @@ public class DominoGameController : ControllerBase
             return BadRequest("Player is not part of this session.");
 
         bool success = game.PlayTile(player, request.Tile, request.Side);
-        Console.WriteLine($"PlayTile request {request.Tile.Left}|{request.Tile.Right} side={request.Side} success={success}");
         if (!success)
             return BadRequest("Invalid move or it is not your turn.");
 

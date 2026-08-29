@@ -376,9 +376,9 @@ function LobbyPage() {
       <header className="lobby-header-bar">
         <div className="lobby-header-left">
           <h1 className="lobby-title">
-            <a href="https://lets-see-frrl.work">Domino Table</a>
+            <a href="https://lets-see-frrl.work">Domino</a>
           </h1>
-          <span className="lobby-title-badge">Multiplayer Lounge</span>
+          <span className="lobby-title-badge">Multiplayer</span>
         </div>
 
         <div className="lobby-header-right">

@@ -21,7 +21,9 @@
   background: #f0f0f0;
   color: #202020;
 }
-
+.lobby-header-bar{
+  background: #505050;
+}
 /* Header */
 .game-header {
   display: flex;

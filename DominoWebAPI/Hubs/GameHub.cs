@@ -33,9 +33,6 @@ public class GameHub : Hub
                 lobby.MarkPlayerDisconnected(info.PlayerId);
                 Console.WriteLine($"Player {info.PlayerId} in room {info.GameId} disconnected. Timeout timer started (10 minutes).");
                 await Clients.Group(info.GameId).SendAsync("PlayerDisconnected", info.PlayerId);
-                // await Clients.Group(lobby.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(lobby));
-
-
             }
         }
 
@@ -102,7 +99,6 @@ public class GameHub : Hub
             Console.WriteLine($"Connection {Context.ConnectionId} joined group {upperGameId}.");
         }
 
-        // Broadcast updated lobby so the host sees the latest player list immediately
         if (lobbyResult.IsSuccess)
         {
             await Clients.Group(upperGameId).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(lobbyResult.Data!));

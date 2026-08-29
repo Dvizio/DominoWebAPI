@@ -13,7 +13,6 @@ public class GameSessionManager
     {
         await Task.Delay(TimeSpan.FromSeconds(10));
         CleanupExpiredSessions(TimeSpan.FromMinutes(10));
-        // Console.WriteLine("Cleanup Called");
     }
 
     public ServiceResult<LobbySession> CreateLobby(string hostName, out int hostPlayerId)
@@ -193,7 +192,6 @@ public class GameSessionManager
             bool isGameOver = session.ActiveGame != null && session.ActiveGame.Status == GameState.GameOver;
             bool isIdleExpired = (now - session.LastActivityUtc) > inactivityTimeout;
 
-            // Check if any disconnected player has exceeded the timeout (e.g. 1 hour)
             bool hasTimedOutDisconnectedPlayer = session.DisconnectedPlayersUtc.Values.Any(dt => (now - dt) > inactivityTimeout);
 
             if (isGameOver || isIdleExpired || hasTimedOutDisconnectedPlayer)
