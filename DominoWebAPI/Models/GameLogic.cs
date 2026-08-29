@@ -23,14 +23,13 @@ public class GameLogic
     public int HandSize { get; }
     public int DeckSize { get; }
     public StartingPlayerRule FirstStarterRule { get; private set; }
-    // public ScoringMethod ScoringMethod { get; }
+
     public int? NextStarter;
     public event Action? GameStateGameOver;
 
     public GameLogic(
         List<IPlayer> players,
         GameMode gameMode,
-        // ScoringMethod scoringMethod,
         int handSize,
         int targetScore,
         int deckSize,
@@ -38,7 +37,6 @@ public class GameLogic
     {
         Mode = gameMode;
         Players = players;
-        // ScoringMethod = scoringMethod;
         TargetScore = targetScore;
         HandSize = handSize;
         FirstStarterRule = rule;
@@ -51,7 +49,6 @@ public class GameLogic
             Scores[player.PlayerId] = 0;
             PlayerHands[player.PlayerId] = new List<DominoTile>();
         }
-        // Board = new DominoBoard(new List<DominoTile>(), new List<int>());
     }
     public void StartGame() //
     {
@@ -95,7 +92,6 @@ public class GameLogic
     }
     public bool CanDraw()
     {
-        // return Deck != null && Deck.Boneyard != null && Deck.Boneyard.Count > 0;
         if (Mode == GameMode.Block)
         {
             return false;

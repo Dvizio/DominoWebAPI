@@ -174,9 +174,14 @@ function GamePage() {
           console.log("GameHub connection closed");
         });
 
-        hubConnection.on("PlayerDisconnected", (data) => {
+        hubConnection.on("PlayerDisconnected", (msg) => {
           console.log("someone disconnected");
+          console.log(getPlayerName(msg));
           refreshGameState();  //TODO langsung gamestateover?
+        });
+
+        hubConnection.on("LobbyUpdated" , (msg) => {
+          console.log(msg)
         });
 
         await hubConnection.start();
