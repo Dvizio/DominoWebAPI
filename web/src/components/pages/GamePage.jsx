@@ -38,6 +38,12 @@ function GamePage() {
   const [validSides, setValidSides] = useState([]);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [disconnectedPlayerIds, setDisconnectedPlayerIds] = useState([]);
+  const [showWaitScreen, setShowWaitScreen] = useState(false);
+
+  // Use refs to track these inside SignalR callbacks to avoid stale closures
+  const disconnectedPlayersRef = useRef(new Set());
+  const disconnectTimerRef = useRef(null);
 
   const connectionRef = useRef(null);
   const boardScrollRef = useRef(null);
@@ -47,13 +53,15 @@ function GamePage() {
     (id) => {
       const numId = Number(id);
       const list = lobbyPlayers || [];
-      const found = list.find((p) => Number(p?.playerId ?? p?.PlayerId) === numId);
+      const found = list.find(
+        (p) => Number(p?.playerId ?? p?.PlayerId) === numId,
+      );
       if (found && (found.playerName || found.PlayerName)) {
         return found.playerName || found.PlayerName;
       }
       return `Player ${numId}`;
     },
-    [lobbyPlayers]
+    [lobbyPlayers],
   );
 
   // Fetch full game state from REST
@@ -62,7 +70,10 @@ function GamePage() {
     try {
       const data = await getGameState(gameId, playerId);
       if (data) {
-        const gameObj = data.game ?? data.Game ?? (data.yourHand || data.YourHand ? data : null);
+        const gameObj =
+          data.game ??
+          data.Game ??
+          (data.yourHand || data.YourHand ? data : null);
         if (gameObj) {
           setGameState(gameObj);
         }
@@ -82,7 +93,8 @@ function GamePage() {
   const calculateValidSides = useCallback(
     (tile, board) => {
       if (!tile) return [];
-      const played = board || gameState?.playedBoard || gameState?.PlayedBoard || [];
+      const played =
+        board || gameState?.playedBoard || gameState?.PlayedBoard || [];
       if (played.length === 0) {
         return [0]; // First tile opening move places to Left (side 0)
       }
@@ -104,7 +116,7 @@ function GamePage() {
       }
       return sides;
     },
-    [gameState]
+    [gameState],
   );
 
   // Check if player has any playable tiles in hand
@@ -175,13 +187,53 @@ function GamePage() {
         });
 
         hubConnection.on("PlayerDisconnected", (msg) => {
-          console.log("someone disconnected");
-          console.log(getPlayerName(msg));
-          refreshGameState();  //TODO langsung gamestateover?
+          const disconnectedId = Number(msg);
+          console.log(`Player ${getPlayerName(disconnectedId)} disconnected`);
+
+          // Add to our tracker
+          disconnectedPlayersRef.current.add(disconnectedId);
+          setDisconnectedPlayerIds(Array.from(disconnectedPlayersRef.current));
+
+          // Start the timer if it's not already running
+          if (!disconnectTimerRef.current) {
+            disconnectTimerRef.current = setTimeout(() => {
+              setShowWaitScreen(true);
+            }, 5000);
+          }
+
+          refreshGameState();
         });
 
-        hubConnection.on("LobbyUpdated" , (msg) => {
-          console.log(msg)
+        hubConnection.on("LobbyUpdated", (msg) => {
+          console.log("Lobby updated:", msg);
+
+          // msg is the LobbyStateDto. Extract current player IDs safely
+          const currentPlayers = msg?.players ?? msg?.Players ?? [];
+          const currentPlayerIds = currentPlayers.map((p) =>
+            Number(p?.playerId ?? p?.PlayerId),
+          );
+
+          // Check if any disconnected players are back in the lobby
+          for (const pId of Array.from(disconnectedPlayersRef.current)) {
+            if (currentPlayerIds.includes(pId)) {
+              disconnectedPlayersRef.current.delete(pId);
+            }
+          }
+
+          setDisconnectedPlayerIds(Array.from(disconnectedPlayersRef.current));
+
+          // If EVERYONE has reconnected
+          if (disconnectedPlayersRef.current.size === 0) {
+            if (disconnectTimerRef.current) {
+              clearTimeout(disconnectTimerRef.current);
+              disconnectTimerRef.current = null;
+            }
+            setShowWaitScreen(false);
+          }
+
+          // Optionally update the local lobby players state so names render correctly
+          setLobbyPlayers(currentPlayers);
+          refreshGameState();
         });
 
         await hubConnection.start();
@@ -216,11 +268,15 @@ function GamePage() {
 
     return () => {
       isMounted = false;
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current);
+        disconnectTimerRef.current = null;
+      }
       if (connectionRef.current) {
-        connectionRef.current.stop().catch(() => { });
+        connectionRef.current.stop().catch(() => {});
         connectionRef.current = null;
       } else if (hubConnection) {
-        hubConnection.stop().catch(() => { });
+        hubConnection.stop().catch(() => {});
       }
     };
   }, [gameId, playerId, navigate, refreshGameState]);
@@ -230,7 +286,9 @@ function GamePage() {
     const played = gameState?.playedBoard || gameState?.PlayedBoard;
     if (boardScrollRef.current && played && played.length > 0) {
       boardScrollRef.current.scrollLeft =
-        (boardScrollRef.current.scrollWidth - boardScrollRef.current.clientWidth) / 2;
+        (boardScrollRef.current.scrollWidth -
+          boardScrollRef.current.clientWidth) /
+        2;
     }
   }, [gameState?.playedBoard, gameState?.PlayedBoard]);
 
@@ -259,12 +317,16 @@ function GamePage() {
 
   // Handle tile click from player hand
   const handleSelectTile = (tile) => {
-    const curPlayerId = Number(gameState?.currentPlayerId ?? gameState?.CurrentPlayerId);
+    const curPlayerId = Number(
+      gameState?.currentPlayerId ?? gameState?.CurrentPlayerId,
+    );
     const myPlayerId = Number(playerId);
     const status = gameState?.status ?? gameState?.Status;
 
     if (curPlayerId !== myPlayerId) {
-      setError(`It is not your turn (Waiting for ${getPlayerName(curPlayerId)}).`);
+      setError(
+        `It is not your turn (Waiting for ${getPlayerName(curPlayerId)}).`,
+      );
       return;
     }
     if (status !== "Playing") {
@@ -289,7 +351,7 @@ function GamePage() {
       const boardLeft = Number(firstTile?.left ?? firstTile?.Left ?? 0);
       const boardRight = Number(lastTile?.right ?? lastTile?.Right ?? 0);
       setError(
-        `Tile [${tLeft}|${tRight}] cannot match either end of the board (Ends are: ${boardLeft} and ${boardRight}).`
+        `Tile [${tLeft}|${tRight}] cannot match either end of the board (Ends are: ${boardLeft} and ${boardRight}).`,
       );
       setSelectedTile(null);
       setValidSides([]);
@@ -321,7 +383,9 @@ function GamePage() {
 
   // Handle drawing a tile
   const handleDrawTile = async () => {
-    const curPlayerId = Number(gameState?.currentPlayerId ?? gameState?.CurrentPlayerId);
+    const curPlayerId = Number(
+      gameState?.currentPlayerId ?? gameState?.CurrentPlayerId,
+    );
     if (curPlayerId !== Number(playerId)) return;
 
     setActionLoading(true);
@@ -342,7 +406,9 @@ function GamePage() {
 
   // Handle passing turn
   const handlePassTurn = async () => {
-    const curPlayerId = Number(gameState?.currentPlayerId ?? gameState?.CurrentPlayerId);
+    const curPlayerId = Number(
+      gameState?.currentPlayerId ?? gameState?.CurrentPlayerId,
+    );
     if (curPlayerId !== Number(playerId)) return;
 
     setActionLoading(true);
@@ -413,7 +479,9 @@ function GamePage() {
 
   // Normalize normalized properties from gameState
   const status = gameState.status ?? gameState.Status ?? "";
-  const curPlayerId = Number(gameState.currentPlayerId ?? gameState.CurrentPlayerId);
+  const curPlayerId = Number(
+    gameState.currentPlayerId ?? gameState.CurrentPlayerId,
+  );
   const myPlayerId = Number(playerId);
   const isMyTurn = curPlayerId === myPlayerId;
   const isPlaying = status === "Playing";
@@ -422,8 +490,10 @@ function GamePage() {
   const roundNum = gameState.roundNumber ?? gameState.RoundNumber ?? 1;
   const playedBoard = gameState.playedBoard ?? gameState.PlayedBoard ?? [];
   const yourHand = gameState.yourHand ?? gameState.YourHand ?? [];
-  const deckCount = gameState.remainingDeckCount ?? gameState.RemainingDeckCount ?? 0;
-  const otherHandCounts = gameState.otherPlayerHandCounts ?? gameState.OtherPlayerHandCounts ?? {};
+  const deckCount =
+    gameState.remainingDeckCount ?? gameState.RemainingDeckCount ?? 0;
+  const otherHandCounts =
+    gameState.otherPlayerHandCounts ?? gameState.OtherPlayerHandCounts ?? {};
   const scores = gameState.scores ?? gameState.Scores ?? {};
   const roundWinnerId = gameState.roundWinnerId ?? gameState.RoundWinnerId;
   const gameWinnerId = gameState.gameWinnerId ?? gameState.GameWinnerId;
@@ -461,7 +531,7 @@ function GamePage() {
 
         <div className="header-center">
           <span className="deck-counter">
-            🀄 Deck: <strong>{deckCount}</strong> left
+            Deck: <strong>{deckCount}</strong> left
           </span>
         </div>
 
@@ -510,7 +580,9 @@ function GamePage() {
 
                 return (
                   <div key={row.rowIndex} className="snake-row-container">
-                    <div className={`snake-row ${isRtl ? "row-rtl" : "row-ltr"}`}>
+                    <div
+                      className={`snake-row ${isRtl ? "row-rtl" : "row-ltr"}`}
+                    >
                       {/* Left End Placement Choice Button (Attached to Tile 0 at start of first row) */}
                       {isFirstRow && selectedTile && validSides.includes(0) && (
                         <button
@@ -556,7 +628,9 @@ function GamePage() {
 
                     {/* Corner connector to next row */}
                     {hasNextRow && (
-                      <div className={`snake-turn-connector ${isRtl ? "turn-left" : "turn-right"}`}>
+                      <div
+                        className={`snake-turn-connector ${isRtl ? "turn-left" : "turn-right"}`}
+                      >
                         <div className="connector-curve" />
                       </div>
                     )}
@@ -569,11 +643,12 @@ function GamePage() {
               <p>The table is empty.</p>
               {isMyTurn ? (
                 <p className="start-hint">
-                  👉 Click any tile in your hand to make the opening move!
+                  Click any tile in your hand to make the opening move!
                 </p>
               ) : (
                 <p className="start-hint">
-                  Waiting for {getPlayerName(curPlayerId)} to make the opening move...
+                  Waiting for {getPlayerName(curPlayerId)} to make the opening
+                  move...
                 </p>
               )}
             </div>
@@ -588,9 +663,7 @@ function GamePage() {
       <footer className="player-dock">
         <div className="dock-status-bar">
           <div className="player-identity">
-            <span className="my-name">
-              {getPlayerName(myPlayerId)} (You)
-            </span>
+            <span className="my-name">{getPlayerName(myPlayerId)} (You)</span>
             <span className="my-score">
               🏆 Score: {scores[myPlayerId] ?? scores[String(myPlayerId)] ?? 0}
             </span>
@@ -599,11 +672,11 @@ function GamePage() {
           <div className="turn-banner">
             {isMyTurn ? (
               <span className="turn-indicator my-turn">
-                🟢 Your Turn! Click a tile to play.
+                Your Turn! Click a tile to play.
               </span>
             ) : (
               <span className="turn-indicator wait-turn">
-                ⏳ Waiting for {getPlayerName(curPlayerId)}...
+                Waiting for {getPlayerName(curPlayerId)}...
               </span>
             )}
           </div>
@@ -732,6 +805,30 @@ function GamePage() {
                   {actionLoading ? "Starting..." : "Start Next Round"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {showWaitScreen && disconnectedPlayerIds.length > 0 && (
+        <div className="modal-backdrop">
+          <div className="summary-modal">
+            <h2>Player Disconnected</h2>
+            <p>Waiting for the following player(s) to reconnect:</p>
+            <ul style={{ listStyleType: "none", padding: 0, margin: "15px 0" }}>
+              {disconnectedPlayerIds.map((id) => (
+                <li key={id} style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
+                  ⏳ {getPlayerName(id)}
+                </li>
+              ))}
+            </ul>
+
+            <div className="modal-actions" style={{ marginTop: "20px" }}>
+              <button
+                className="modal-btn return-btn"
+                onClick={handleLeaveGame}
+              >
+                Exit Game
+              </button>
             </div>
           </div>
         </div>
