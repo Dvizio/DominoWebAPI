@@ -1,5 +1,5 @@
 # Individual Game Project
-Domino Multiplayer game based on [Vio's classdiagram](https://gist.github.com/viogustian/8be8d1ad9b4d56d765daec88b4f01bba)  [Try it here!](https://domino.lets-see-frrl.work) 
+Domino Multiplayer game based on [Vio's classdiagram](https://gist.github.com/viogustian/8be8d1ad9b4d56d765daec88b4f01bba) - [Try it here!](https://domino.lets-see-frrl.work) 
 
 ### Create a Lobby
 <img width="1874" height="917" alt="image" src="https://github.com/user-attachments/assets/71f0f601-633c-47c3-954e-920d49ae1cff" />
