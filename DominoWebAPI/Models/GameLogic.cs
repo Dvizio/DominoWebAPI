@@ -209,7 +209,6 @@ public class GameLogic
         {
             NextPlayer();
         }
-        Console.WriteLine("return true");
         return true;
     }
 
