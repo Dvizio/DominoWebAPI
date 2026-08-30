@@ -19,10 +19,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", policy =>
     {
         policy.WithOrigins("https://domino.lets-see-frrl.work")
-        // .SetIsOriginAllowed(_ => true)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        // policy.SetIsOriginAllowed(_ => true)
+             .AllowAnyHeader()
+             .AllowAnyMethod()
+             .AllowCredentials();
     });
 });
 
