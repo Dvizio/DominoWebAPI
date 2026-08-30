@@ -144,9 +144,6 @@ public class GameLogic
 
     public bool PlayTile(IPlayer player, DominoTile tile, PlacementSide side) //ok
     {
-        Console.WriteLine("IM HIT");
-        Console.WriteLine(tile.Left);
-        Console.WriteLine(tile.Right);
         List<DominoTile> playedTile = Board.PlayedTile;
         if (player.PlayerId != CurrentPlayer.PlayerId)
         {
@@ -154,11 +151,11 @@ public class GameLogic
             return false;
         }
         var hand = PlayerHands[player.PlayerId];
-        Console.WriteLine($"player id is  = {player.PlayerId}");
+        // Console.WriteLine($"player id is  = {player.PlayerId}");
         foreach (var t in hand)
         {
-            Console.WriteLine();
-            Console.Write($"{t.Left} {t.Right} |");
+            // Console.WriteLine();
+            // Console.Write($"{t.Left} {t.Right} |");
         }
         if (!hand.Contains(tile))
         {

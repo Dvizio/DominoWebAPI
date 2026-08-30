@@ -148,3 +148,103 @@
   cursor: not-allowed !important;
 }
 
+/* =========================================================
+   Mobile Domino Tile Sizes
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  /* Board tiles: 44x88 -> 36x72 */
+  .domino-tile.size-medium.vertical {
+    width: 36px;
+    height: 72px;
+  }
+
+  .domino-tile.size-medium.horizontal {
+    width: 72px;
+    height: 36px;
+  }
+
+  /* Hand tiles: 56x112 -> 44x88 */
+  .domino-tile.size-large.vertical {
+    width: 44px;
+    height: 88px;
+  }
+
+  .domino-tile.size-large.horizontal {
+    width: 88px;
+    height: 44px;
+  }
+
+  /* Smaller pips so they remain proportional */
+  .size-medium .pip-grid {
+    max-width: 27px;
+    max-height: 27px;
+  }
+
+  .size-medium .pip-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .size-large .pip-grid {
+    max-width: 32px;
+    max-height: 32px;
+  }
+
+  .size-large .pip-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .tile-half {
+    padding: 2px;
+  }
+}
+
+
+/* Extra-small phones */
+@media (max-width: 360px) {
+
+  /* Board tiles: 44x88 -> 32x64 */
+  .domino-tile.size-medium.vertical {
+    width: 32px;
+    height: 64px;
+  }
+
+  .domino-tile.size-medium.horizontal {
+    width: 64px;
+    height: 32px;
+  }
+
+  /* Hand tiles: 56x112 -> 40x80 */
+  .domino-tile.size-large.vertical {
+    width: 40px;
+    height: 80px;
+  }
+
+  .domino-tile.size-large.horizontal {
+    width: 80px;
+    height: 40px;
+  }
+
+  .size-medium .pip-grid {
+    max-width: 24px;
+    max-height: 24px;
+  }
+
+  .size-medium .pip-dot {
+    width: 4px;
+    height: 4px;
+  }
+
+  .size-large .pip-grid {
+    max-width: 29px;
+    max-height: 29px;
+  }
+
+  .size-large .pip-dot {
+    width: 5px;
+    height: 5px;
+  }
+}
