@@ -61,7 +61,6 @@ public class GameLogic
         InitializeDeck(DeckSize);
         Board = new DominoBoard(new List<DominoTile>(), new List<int>());
         ConsecutivePasses = 0;
-        Console.WriteLine("Dealing Hands!");
         DealHands(HandSize);
         CurrentPlayer = DetermineStartingPlayer(FirstStarterRule);
         CurrentPlayerIndex = Players.IndexOf(CurrentPlayer);
@@ -80,7 +79,7 @@ public class GameLogic
 
     public bool AutoDrawToPlayerHand(IPlayer player)
     {
-        if (CanDraw())
+        if (CanDraw() && player.PlayerId == CurrentPlayer.PlayerId)
         {
             if (DrawRandomTile() is DominoTile tile)
             {

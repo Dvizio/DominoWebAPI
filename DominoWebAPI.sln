@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DominoWebAPI", "DominoWebAPI\DominoWebAPI.csproj", "{558D7C88-1780-4406-8B31-302440330C28}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DominoWebAPI.Tests", "DominoWebAPI.Tests\DominoWebAPI.Tests.csproj", "{389FB938-8CD4-41B9-AE87-0104CDB41EA6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{558D7C88-1780-4406-8B31-302440330C28}.Release|x64.Build.0 = Release|Any CPU
 		{558D7C88-1780-4406-8B31-302440330C28}.Release|x86.ActiveCfg = Release|Any CPU
 		{558D7C88-1780-4406-8B31-302440330C28}.Release|x86.Build.0 = Release|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Debug|x64.Build.0 = Debug|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Debug|x86.Build.0 = Debug|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Release|x64.ActiveCfg = Release|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Release|x64.Build.0 = Release|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Release|x86.ActiveCfg = Release|Any CPU
+		{389FB938-8CD4-41B9-AE87-0104CDB41EA6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
