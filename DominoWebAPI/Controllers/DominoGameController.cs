@@ -72,7 +72,15 @@ public class DominoGameController : ControllerBase
     {
         var result = _sessionManager.UpdateSettings(request);
         if (!result.IsSuccess)
+        {
+            _logger.LogWarning(
+                "Failed to update settings for game {GameId}: {ErrorMessage}",
+                request.GameId,
+                result.ErrorMessage ?? "Unknown error");
             return result.ToActionResult();
+        }
+
+            
 
         var lobbyDto = DtoMapper.ToLobbyDto(result.Data!);
         await _hubContext.Clients.Group(request.GameId.ToUpper()).SendAsync("LobbyUpdated", lobbyDto);

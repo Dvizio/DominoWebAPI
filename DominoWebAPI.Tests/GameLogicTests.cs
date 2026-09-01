@@ -57,6 +57,25 @@ public class GameLogicTests
     }
 
     [Test]
+    public void StartNextRound_WhenRoundIsOver_StartsNextRound()
+    {
+        var initialRoundNumber = _gameLogic.RoundNumber;
+        _gameLogic.EndRound();
+
+        Assert.That(_gameLogic.Status, Is.EqualTo(GameState.RoundOver));
+        _gameLogic.StartNextRound();
+
+        Assert.That(
+            _gameLogic.RoundNumber,
+            Is.EqualTo(initialRoundNumber + 1));
+
+        Assert.That(
+            _gameLogic.Status,
+            Is.EqualTo(GameState.Playing));
+    }
+
+
+    [Test]
     public void CanDraw_GameModeDraw_ReturnsTrue()
     {
         var canDraw = _gameLogic.CanDraw();
@@ -290,6 +309,144 @@ public class GameLogicTests
     }
 
     [Test]
+    public void PlayTile_LeftSideMatchingOrientation_PlacesTileWithoutRotation()
+    {
+
+        var currentPlayer = _gameLogic.CurrentPlayer;
+        var boardTile = new DominoTile(6, 3);
+        var tileToPlay = new DominoTile(2, 6);
+
+        _gameLogic.Board.PlayedTile = new List<DominoTile>
+    {
+        boardTile
+    };
+
+        _gameLogic.PlayerHands[currentPlayer.PlayerId] = new List<DominoTile>
+    {
+        tileToPlay
+    };
+
+        var result = _gameLogic.PlayTile(
+            currentPlayer,
+            tileToPlay,
+            PlacementSide.Left);
+
+        Assert.That(result, Is.True);
+
+        Assert.That(
+            _gameLogic.Board.PlayedTile[0].Left,
+            Is.EqualTo(2));
+
+        Assert.That(
+            _gameLogic.Board.PlayedTile[0].Right,
+            Is.EqualTo(6));
+    }
+
+    [Test]
+    public void PlayTile_LeftSideNeedsRotation_RotatesTile()
+    {
+        var currentPlayer = _gameLogic.CurrentPlayer;
+        var boardTile = new DominoTile(6, 3);
+        var tileToPlay = new DominoTile(6, 2);
+
+        _gameLogic.Board.PlayedTile = new List<DominoTile>
+    {
+        boardTile
+    };
+
+        _gameLogic.PlayerHands[currentPlayer.PlayerId] = new List<DominoTile>
+    {
+        tileToPlay
+    };
+
+
+        var result = _gameLogic.PlayTile(
+            currentPlayer,
+            tileToPlay,
+            PlacementSide.Left);
+
+        Assert.That(result, Is.True);
+
+        var placedTile = _gameLogic.Board.PlayedTile[0];
+
+        Assert.That(placedTile.Left, Is.EqualTo(2));
+        Assert.That(placedTile.Right, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void PlayTile_RightSide_NeedsRotation_RotatesTile()
+    {
+        var currentPlayer = _gameLogic.CurrentPlayer;
+        var boardTile = new DominoTile(3, 6);
+        var tileToPlay = new DominoTile(2, 6);
+
+        _gameLogic.Board.PlayedTile = new List<DominoTile>
+    {
+        boardTile
+    };
+
+        _gameLogic.PlayerHands[currentPlayer.PlayerId] = new List<DominoTile>
+    {
+        tileToPlay
+    };
+
+
+        var result = _gameLogic.PlayTile(
+            currentPlayer,
+            tileToPlay,
+            PlacementSide.Right);
+
+        Assert.That(result, Is.True);
+
+        var placedTile = _gameLogic.Board.PlayedTile[^1];
+
+        Assert.That(placedTile.Left, Is.EqualTo(6));
+        Assert.That(placedTile.Right, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void PlayTile_Success_ResetsConsecutivePasses()
+    {
+        var currentPlayer = _gameLogic.CurrentPlayer;
+        _gameLogic.PassTurn(currentPlayer);
+        currentPlayer = _gameLogic.CurrentPlayer;
+        var tile = _gameLogic.PlayerHands[currentPlayer.PlayerId].First();
+        _gameLogic.Board.PlayedTile = new List<DominoTile>();
+
+        var result = _gameLogic.PlayTile(
+            currentPlayer,
+            tile,
+            PlacementSide.Left);
+
+        Console.WriteLine(tile);
+        Console.WriteLine(_gameLogic.Board.PlayedTile[0]);
+        Assert.That(result, Is.True);
+        Assert.That(_gameLogic.ConsecutivePasses, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void CanPlayerMakeAnyMove_WhenPlayerHasPlayableTile_ReturnsTrue()
+    {
+        var player = players[0];
+
+        _gameLogic.Board.PlayedTile = new List<DominoTile>
+    {
+        new DominoTile(6, 3)
+    };
+
+        _gameLogic.PlayerHands[player.PlayerId] = new List<DominoTile>
+    {
+        new DominoTile(2, 6),
+        new DominoTile(1, 1)
+    };
+
+        var result = _gameLogic.CanPlayerMakeAnyMove(player.PlayerId);
+        Assert.That(result, Is.True);
+    }
+
+
+
+    [Test]
     public void CheckRoundEnd_ReturnsTrueWhenRoundIsOver()
     {
         var currentPlayer = _gameLogic.CurrentPlayer;
@@ -476,5 +633,37 @@ public class GameLogicTests
         Assert.That(eventRaised, Is.True);
         Assert.That(game.Status, Is.EqualTo(GameState.GameOver));
     }
+
+    [Test]
+    public void DetermineStartingPlayer_PreviousWinner_PrioritizesPreviousWinnerOverHighestDouble()
+    {
+        // Arrange
+        var previousWinner = players[1]; // Bob
+
+        _gameLogic.PlayerHands[1] = new List<DominoTile>
+    {
+        new DominoTile(6, 6)
+    };
+
+        _gameLogic.PlayerHands[2] = new List<DominoTile>
+    {
+        new DominoTile(1, 1)
+    };
+
+        _gameLogic.PlayerHands[3] = new List<DominoTile>
+    {
+        new DominoTile(5, 5)
+    };
+
+        _gameLogic.EndRound();
+
+        var startingPlayer = _gameLogic.DetermineStartingPlayer(
+            StartingPlayerRule.PreviousWinner
+        );
+
+        Assert.That(_gameLogic.RoundWinner, Is.SameAs(previousWinner));
+        Assert.That(startingPlayer, Is.SameAs(previousWinner));
+    }
+
 
 }

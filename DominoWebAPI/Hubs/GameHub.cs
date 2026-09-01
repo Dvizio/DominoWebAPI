@@ -6,15 +6,19 @@ using DominoWebAPI.Services;
 using DominoWebAPI.DTOs;
 using DominoWebAPI.Models;
 using DominoWebAPI.Common;
+using DominoWebAPI.Controllers;
 
 public class GameHub : Hub
 {
     private readonly GameSessionManager _sessionManager;
+    private readonly ILogger<DominoGameController> _logger;
+
     private static readonly ConcurrentDictionary<string, (string GameId, int PlayerId)> _connectionMap = new();
 
-    public GameHub(GameSessionManager sessionManager)
+    public GameHub(GameSessionManager sessionManager, ILogger<DominoGameController> logger)
     {
         _sessionManager = sessionManager;
+        _logger = logger;
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -31,7 +35,7 @@ public class GameHub : Hub
                     await Clients.Group(lobby.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(lobby));
                 }
                 lobby.MarkPlayerDisconnected(info.PlayerId);
-                Console.WriteLine($"Player {info.PlayerId} in room {info.GameId} disconnected. Timeout timer started (10 minutes).");
+                _logger.LogInformation("Player {PlayerId} in room {GameId} disconnected. Timeout timer started (10 minutes).", info.PlayerId, info.GameId);
                 await Clients.Group(info.GameId).SendAsync("PlayerDisconnected", info.PlayerId);
             }
         }
@@ -51,7 +55,7 @@ public class GameHub : Hub
         var session = result.Data!;
         await Groups.AddToGroupAsync(Context.ConnectionId, session.GameId.ToUpper());
         _connectionMap[Context.ConnectionId] = (session.GameId.ToUpper(), hostPlayerId);
-        Console.WriteLine($"Lobby created by {hostName} in room {session.GameId}");
+        _logger.LogInformation("Lobby created by {HostName} in room {GameId}", hostName, session.GameId);
 
         return new { PlayerId = hostPlayerId, Lobby = DtoMapper.ToLobbyDto(session) };
     }
@@ -70,7 +74,7 @@ public class GameHub : Hub
         _connectionMap[Context.ConnectionId] = (session.GameId.ToUpper(), newPlayerId);
         session.MarkPlayerReconnected(newPlayerId);
 
-        Console.WriteLine($"Player {playerName} joined lobby {gameId}");
+        _logger.LogInformation("Player {PlayerName} joined lobby {GameId}", playerName, gameId);
 
         await Clients.Caller.SendAsync("JoinedSuccess", newPlayerId);
         await Clients.Group(session.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(session));
@@ -91,12 +95,12 @@ public class GameHub : Hub
             if (lobbyResult.IsSuccess)
             {
                 lobbyResult.Data!.MarkPlayerReconnected(playerId.Value);
-                Console.WriteLine($"Player {playerId.Value} joined/reconnected to group {upperGameId}.");
+                _logger.LogInformation("Player {PlayerId} joined/reconnected to group {GameId}", playerId.Value, upperGameId);
             }
         }
         else
         {
-            Console.WriteLine($"Connection {Context.ConnectionId} joined group {upperGameId}.");
+            _logger.LogInformation("Connection {ConnectionId} joined group {GameId}", Context.ConnectionId, upperGameId);
         }
 
         if (lobbyResult.IsSuccess)
@@ -112,6 +116,7 @@ public class GameHub : Hub
         {
             var session = result.Data!;
             await Clients.Group(settings.GameId.ToUpper()).SendAsync("LobbyUpdated", DtoMapper.ToLobbyDto(session));
+            _logger.LogInformation("Settings updated for game {GameId}", settings.GameId);
             session.Touch();
         }
     }
@@ -120,7 +125,7 @@ public class GameHub : Hub
     {
         var gameResult = _sessionManager.GetGame(gameId);
         var game = gameResult.IsSuccess ? gameResult.Data : _sessionManager.StartGame(gameId, playerId).Data;
-        Console.WriteLine($"Game with {gameId} started by player {playerId}");
+        _logger.LogInformation("Game with {GameId} started by player {PlayerId}", gameId, playerId);
         if (game != null)
         {
             await Clients.Group(gameId.ToUpper()).SendAsync("GameStarted");

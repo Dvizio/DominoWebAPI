@@ -349,12 +349,7 @@ public class GameLogic
         }
         return WinnerId;
     }
-    public int CalculateSumMinusWinner(int player1, int player2)
-    {
-        int a = CalculatePipTotal(player1);
-        int b = CalculatePipTotal(player2);
-        return Math.Abs(a - b);
-    }
+
     public int CalculateSumOfOpponents(int winnerId)
     {
         int calculateScore = 0;

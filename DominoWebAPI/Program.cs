@@ -24,8 +24,8 @@ try
     {
         options.AddPolicy("AllowAll", policy =>
         {
-            policy.WithOrigins("https://domino.lets-see-frrl.work")
-            // policy.SetIsOriginAllowed(_ => true)
+            // policy.WithOrigins("https://domino.lets-see-frrl.work")
+            policy.SetIsOriginAllowed(_ => true)
                  .AllowAnyHeader()
                  .AllowAnyMethod()
                  .AllowCredentials();
