@@ -15,26 +15,32 @@ public class DominoGameController : ControllerBase
 {
     private readonly GameSessionManager _sessionManager;
     private readonly IHubContext<GameHub> _hubContext;
+    private readonly ILogger<DominoGameController> _logger;
 
     public DominoGameController(
         GameSessionManager sessionManager,
-        IHubContext<GameHub> hubContext)
+        IHubContext<GameHub> hubContext,
+        ILogger<DominoGameController> logger)
     {
         _sessionManager = sessionManager;
         _hubContext = hubContext;
+        _logger = logger;
     }
 
     //POST api/games/lobby - Host creates a lobby
     [HttpPost("lobby")]
     public IActionResult CreateLobby([FromBody] CreateLobbyRequest request)
     {
-        Console.WriteLine($"host spawned {request.HostPlayerName}");
+        _logger.LogInformation("Host {HostPlayerName} is creating a new lobby", request.HostPlayerName);
         var result = _sessionManager.CreateLobby(request.HostPlayerName, out int hostPlayerId);
         if (!result.IsSuccess)
             return result.ToActionResult();
 
         var lobbyDto = DtoMapper.ToLobbyDto(result.Data!);
-        Console.WriteLine($"Create a game with id {lobbyDto.GameId}");
+        _logger.LogInformation(
+            "Lobby created with game ID {GameId} by host {HostPlayerName}",
+            lobbyDto.GameId,
+            request.HostPlayerName);
         return Ok(new { PlayerId = hostPlayerId, Lobby = lobbyDto });
     }
 
@@ -42,7 +48,7 @@ public class DominoGameController : ControllerBase
     [HttpPost("lobby/join")]
     public async Task<IActionResult> JoinLobby([FromBody] JoinLobbyRequest request)
     {
-        Console.WriteLine($"a guy named {request.PlayerName} joined {request.GameId}");
+        _logger.LogInformation("Player {PlayerName} is joining lobby {GameId}", request.PlayerName, request.GameId);
         var result = _sessionManager.JoinLobby(request.GameId, request.PlayerName);
         if (!result.IsSuccess)
             return result.ToActionResult();
@@ -51,6 +57,11 @@ public class DominoGameController : ControllerBase
         var lobbyDto = DtoMapper.ToLobbyDto(session);
         await _hubContext.Clients.Group(request.GameId.ToUpper())
             .SendAsync("LobbyUpdated", lobbyDto);
+
+        _logger.LogInformation(
+            "Player {PlayerName} joined lobby {GameId}",
+            request.PlayerName,
+            request.GameId);
 
         return Ok(new { PlayerId = newPlayerId, Lobby = lobbyDto });
     }
@@ -65,6 +76,10 @@ public class DominoGameController : ControllerBase
 
         var lobbyDto = DtoMapper.ToLobbyDto(result.Data!);
         await _hubContext.Clients.Group(request.GameId.ToUpper()).SendAsync("LobbyUpdated", lobbyDto);
+        _logger.LogInformation(
+            "Host updated settings for game {GameId}",
+            request.GameId);
+
         return Ok(lobbyDto);
     }
 
@@ -74,10 +89,15 @@ public class DominoGameController : ControllerBase
     {
         var result = _sessionManager.StartGame(gameId, playerId);
         if (!result.IsSuccess)
+        {
+            _logger.LogWarning("Failed to start game {GameId}", gameId);
             return result.ToActionResult();
+        }
+            
 
         await _hubContext.Clients.Group(gameId.ToUpper()).SendAsync("GameStarted");
         await _hubContext.Clients.Group(gameId.ToUpper()).SendAsync("GameStateUpdated");
+        _logger.LogInformation("Host started game {GameId}", gameId);
 
         return Ok(DtoMapper.ToGameDto(gameId, result.Data!, playerId));
     }
@@ -88,22 +108,37 @@ public class DominoGameController : ControllerBase
     {
         var lobbyResult = _sessionManager.GetLobby(gameId);
         if (!lobbyResult.IsSuccess)
+        {
+            _logger.LogWarning("Failed to get lobby for game {GameId}: {ErrorMessage}", gameId, lobbyResult.ErrorMessage!);
             return lobbyResult.ToActionResult();
+        }
 
         var lobby = lobbyResult.Data!;
         if (lobby.ActiveGame == null)
+        {
+            _logger.LogWarning("Attempt to start next round for game {GameId} but no active game found", gameId);
             return NotFound("Active game session not found.");
+        }
+            
 
         if (lobby.HostPlayerId != playerId)
+        {
+            _logger.LogWarning("Player {PlayerId} attempted to start next round for game {GameId} but is not the host", playerId, gameId);
             return BadRequest("Only the host can start the next round.");
+        }
 
         var game = lobby.ActiveGame;
         if (game.Status != GameState.RoundOver)
+        {
+            _logger.LogWarning("Attempt to start next round for game {GameId} when not in RoundOver state", gameId);
             return BadRequest("Game is not in RoundOver state.");
+        }
+            
 
         game.StartNextRound();
 
         await _hubContext.Clients.Group(gameId.ToUpper()).SendAsync("GameStateUpdated");
+        _logger.LogInformation("Host started next round for game {GameId}", gameId);
 
         return Ok(DtoMapper.ToGameDto(gameId, game, playerId));
     }
@@ -114,13 +149,17 @@ public class DominoGameController : ControllerBase
     {
         var lobbyResult = _sessionManager.GetLobby(gameId);
         if (!lobbyResult.IsSuccess)
+        {
+            _logger.LogWarning("Failed to get lobby for game {GameId}: {ErrorMessage}", gameId, lobbyResult.ErrorMessage!);
             return lobbyResult.ToActionResult();
+        }
 
         var lobby = lobbyResult.Data!;
         lobby.Touch();
 
         if (lobby.ActiveGame == null)
         {
+            _logger.LogWarning("Attempt to get state for game {GameId} but no active game found", gameId);
             return Ok(new { IsActive = false, Lobby = DtoMapper.ToLobbyDto(lobby) });
         }
 
@@ -138,9 +177,13 @@ public class DominoGameController : ControllerBase
     {
         var result = _sessionManager.RemoveLobby(gameId);
         if (!result.IsSuccess)
+        {
+            _logger.LogWarning("Failed to remove lobby for game {GameId}: {ErrorMessage}", gameId, result.ErrorMessage!);
             return result.ToActionResult();
+        }
 
         await _hubContext.Clients.Group(gameId.ToUpper()).SendAsync("LobbyClosed", "Game session has ended.");
+        _logger.LogInformation("Game session {GameId} removed successfully", gameId);
         return Ok(new { Message = "Game session removed successfully." });
     }
 
@@ -150,20 +193,33 @@ public class DominoGameController : ControllerBase
     {
         var lobbyResult = _sessionManager.GetLobby(request.GameId);
         if (!lobbyResult.IsSuccess)
+        {
+            _logger.LogWarning("Failed to get lobby for game {GameId}: {ErrorMessage}", request.GameId, lobbyResult.ErrorMessage!);
             return lobbyResult.ToActionResult();
+        }
 
         var lobby = lobbyResult.Data!;
         if (lobby.ActiveGame == null)
+        {
+            _logger.LogWarning("Attempt to play tile for game {GameId} but no active game found", request.GameId);
             return NotFound("Active game session not found.");
+        }
 
         var game = lobby.ActiveGame;
         var player = game.Players.FirstOrDefault(p => p.PlayerId == request.PlayerId);
         if (player == null)
+        {
+            _logger.LogWarning("Player {PlayerId} attempted to play tile for game {GameId} but is not part of the session. Time to shutdown the service... someone trying to exploit", request.PlayerId, request.GameId);
             return BadRequest("Player is not part of this session.");
+        }
 
         bool success = game.PlayTile(player, request.Tile, request.Side);
         if (!success)
+        {
+            _logger.LogWarning("Player {PlayerId} attempted to play tile {Tile} on side {Side} for game {GameId} but the move was invalid or it is not their turn", request.PlayerId, request.Tile, request.Side, request.GameId);
             return BadRequest("Invalid move or it is not your turn.");
+        }
+            
 
         lobby.Touch();
         await _hubContext.Clients.Group(request.GameId.ToUpper()).SendAsync("GameStateUpdated");
@@ -177,11 +233,17 @@ public class DominoGameController : ControllerBase
     {
         var lobbyResult = _sessionManager.GetLobby(request.GameId);
         if (!lobbyResult.IsSuccess)
+        {
+            _logger.LogWarning("Failed to get lobby for game {GameId}: {ErrorMessage}", request.GameId, lobbyResult.ErrorMessage!);
             return lobbyResult.ToActionResult();
+        }
 
         var lobby = lobbyResult.Data!;
         if (lobby.ActiveGame == null)
+        {
+            _logger.LogWarning("Attempt to draw tile for game {GameId} but no active game found", request.GameId);
             return NotFound("Active game session not found.");
+        }
 
         var game = lobby.ActiveGame;
         if (game.CurrentPlayer.PlayerId != request.PlayerId)
@@ -189,7 +251,11 @@ public class DominoGameController : ControllerBase
 
         var player = game.Players.FirstOrDefault(p => p.PlayerId == request.PlayerId);
         if (player == null)
+        {
+            _logger.LogWarning("Player {PlayerId} attempted to draw tile for game {GameId} but is not part of the session. Time to shutdown the service... someone trying to exploit", request.PlayerId, request.GameId);
             return BadRequest("Player is not part of this session.");
+        }
+            
 
         bool drew = game.AutoDrawToPlayerHand(player);
         if (!drew)
@@ -207,19 +273,33 @@ public class DominoGameController : ControllerBase
     {
         var lobbyResult = _sessionManager.GetLobby(request.GameId);
         if (!lobbyResult.IsSuccess)
+        {
+            _logger.LogWarning("Failed to get lobby for game {GameId}: {ErrorMessage}", request.GameId, lobbyResult.ErrorMessage!);
             return lobbyResult.ToActionResult();
+        }
 
         var lobby = lobbyResult.Data!;
         if (lobby.ActiveGame == null)
+        {
+            _logger.LogWarning("Attempt to pass turn for game {GameId} but no active game found", request.GameId);
             return NotFound("Active game session not found.");
+        }
 
         var game = lobby.ActiveGame;
         if (game.CurrentPlayer.PlayerId != request.PlayerId)
+        {
+            _logger.LogWarning("Player {PlayerId} attempted to pass turn for game {GameId} but it is not their turn", request.PlayerId, request.GameId);
             return BadRequest("It is not your turn.");
+        }
+            
 
         var player = game.Players.FirstOrDefault(p => p.PlayerId == request.PlayerId);
         if (player == null)
+        {
+            _logger.LogWarning("Player {PlayerId} attempted to pass turn for game {GameId} but is not part of the session. Time to shutdown the service... someone trying to exploit", request.PlayerId, request.GameId);
             return BadRequest("Player is not part of this session.");
+        }
+            
 
         game.PassTurn(player);
 
