@@ -1,4 +1,5 @@
 using Serilog;
+using Serilog.Formatting.Compact; 
 
 namespace DominoWebAPI.Extensions
 {
@@ -10,9 +11,11 @@ namespace DominoWebAPI.Extensions
             {
                 configuration
                     .MinimumLevel.Information()
-                    .WriteTo.Console()
+                    .Enrich.FromLogContext() 
+                    .WriteTo.Console(new CompactJsonFormatter())
                     .WriteTo.File(
-                        "logs/log.txt",
+                        new CompactJsonFormatter(), 
+                        "logs/log.json", 
                         rollingInterval: RollingInterval.Day);
             });
         }

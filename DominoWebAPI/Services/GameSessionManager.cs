@@ -15,7 +15,7 @@ public class GameSessionManager
         CleanupExpiredSessions(TimeSpan.FromMinutes(10));
     }
 
-    public ServiceResult<LobbySession> CreateLobby(string hostName, out int hostPlayerId)
+    public virtual ServiceResult<LobbySession> CreateLobby(string hostName, out int hostPlayerId)
     {
         if (string.IsNullOrWhiteSpace(hostName))
         {
@@ -44,7 +44,7 @@ public class GameSessionManager
         return ServiceResult<LobbySession>.Success(session);
     }
 
-    public ServiceResult<(LobbySession Session, int NewPlayerId)> JoinLobby(string gameId, string playerName)
+    public virtual ServiceResult<(LobbySession Session, int NewPlayerId)> JoinLobby(string gameId, string playerName)
     {
         if (string.IsNullOrWhiteSpace(gameId))
             return ServiceResult<(LobbySession Session, int NewPlayerId)>.BadRequest("Game ID is required.");
@@ -75,13 +75,13 @@ public class GameSessionManager
         return ServiceResult<(LobbySession Session, int NewPlayerId)>.Success((session, newPlayerId));
     }
 
-    public bool IsHost(string gameId, int playerId)
+    public virtual bool IsHost(string gameId, int playerId)
     {
         var lobbyResult = GetLobby(gameId);
         return lobbyResult.IsSuccess && lobbyResult.Data!.HostPlayerId == playerId;
     }
 
-    public ServiceResult<LobbySession> UpdateSettings(UpdateSettingsRequest request)
+    public virtual ServiceResult<LobbySession> UpdateSettings(UpdateSettingsRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.GameId))
             return ServiceResult<LobbySession>.BadRequest("Game ID is required.");
@@ -103,7 +103,7 @@ public class GameSessionManager
         return ServiceResult<LobbySession>.Success(session);
     }
 
-    public ServiceResult<GameLogic> StartGame(string gameId, int requestingPlayerId)
+    public virtual ServiceResult<GameLogic> StartGame(string gameId, int requestingPlayerId)
     {
         if (string.IsNullOrWhiteSpace(gameId))
             return ServiceResult<GameLogic>.BadRequest("Game ID is required.");
@@ -140,7 +140,7 @@ public class GameSessionManager
         return ServiceResult<GameLogic>.Success(game);
     }
 
-    public ServiceResult<LobbySession> GetLobby(string gameId)
+    public virtual ServiceResult<LobbySession> GetLobby(string gameId)
     {
         if (string.IsNullOrWhiteSpace(gameId))
             return ServiceResult<LobbySession>.BadRequest("Game ID is required.");
@@ -154,7 +154,7 @@ public class GameSessionManager
         return ServiceResult<LobbySession>.NotFound("Game session not found.");
     }
 
-    public ServiceResult<GameLogic> GetGame(string gameId)
+    public virtual ServiceResult<GameLogic> GetGame(string gameId)
     {
         var lobbyResult = GetLobby(gameId);
         if (!lobbyResult.IsSuccess)
@@ -166,7 +166,7 @@ public class GameSessionManager
         return ServiceResult<GameLogic>.Success(lobbyResult.Data.ActiveGame);
     }
 
-    public ServiceResult RemoveLobby(string gameId)
+    public virtual ServiceResult RemoveLobby(string gameId)
     {
         if (string.IsNullOrWhiteSpace(gameId))
             return ServiceResult.BadRequest("Game ID is required.");
@@ -179,7 +179,7 @@ public class GameSessionManager
         return ServiceResult.NotFound("Game session not found.");
     }
 
-    public int CleanupExpiredSessions(TimeSpan inactivityTimeout)
+    public virtual int CleanupExpiredSessions(TimeSpan inactivityTimeout)
     {
         var now = DateTime.UtcNow;
         int removedCount = 0;
